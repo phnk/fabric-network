@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"path"
 	"time"
@@ -27,7 +28,7 @@ import (
 
 const (
 	mspID        = "Org1MSP"
-	cryptoPath   = "../test-network/organizations/peerOrganizations/org1.example.com"
+	cryptoPath   = "../../test-network/organizations/peerOrganizations/org1.example.com"
 	certPath     = cryptoPath + "/users/User1@org1.example.com/msp/signcerts/User1@org1.example.com-cert.pem"
 	keyPath      = cryptoPath + "/users/User1@org1.example.com/msp/keystore/"
 	tlsCertPath  = cryptoPath + "/peers/peer0.org1.example.com/tls/ca.crt"
@@ -36,7 +37,8 @@ const (
 )
 
 var technichianID = "Org1MSP"
-var jobID = "9"
+
+//var jobID = "9"
 
 func main() {
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
@@ -83,13 +85,36 @@ func main() {
 	contract := network.GetContract(chaincodeName)
 	// contract2 := network.GetContract(chaincodeName2)
 
+	jobtype1 := FiftyFifty()
+	jobtype2 := FiftyFifty()
+	jobtype3 := FiftyFifty()
+	jobtype4 := FiftyFifty()
+
 	create(contract)
-	takeJob(contract)
+	takeJob(contract, "1", jobtype1)
+	takeJob(contract, "2", jobtype2)
+	takeJob(contract, "3", jobtype3)
+	takeJob(contract, "4", jobtype4)
+	readGC(contract)
 	getAllJobs(contract)
-	finishJob(contract)
+	finishJob(contract, "2")
+	finishJob(contract, "3")
 	readGC(contract)
 	// createJob(contract2)
 
+}
+
+func FiftyFifty() string {
+	// Use rand.Intn to generate a random integer within a specific range
+	result := rand.Intn(2)
+
+	// If the result is 0, return 1 (50% chance)
+	if result == 0 {
+		return "bumpy"
+	}
+
+	// Otherwise, return 2 (other 50% chance)
+	return "razor"
 }
 
 // newGrpcConnection creates a gRPC connection to the Gateway server.
@@ -170,7 +195,7 @@ func create(contract *client.Contract) {
 	fmt.Printf("*** Transaction committed successfully\n")
 }
 
-func createJob(contract *client.Contract) {
+func createJob(contract *client.Contract, jobID string) {
 	fmt.Println("\n--> Submit Transaction: UpdateAsset asset70, asset70 does not exist and should return an error")
 
 	_, err := contract.SubmitTransaction("Create", technichianID, jobID, "5", "Tomoko", "300")
@@ -210,10 +235,11 @@ func createJob(contract *client.Contract) {
 }
 
 // Submit a transaction to query ledger state.
-func takeJob(contract *client.Contract) {
+func takeJob(contract *client.Contract, jobID string, jobType string) {
 	fmt.Println("\n--> Submit Transaction: Update, function updates a key value pair on the ledger \n")
 
-	submitResult, err := contract.SubmitTransaction("TakeJob", jobID, technichianID)
+	//Remember to remove jobtype when integrated with jespers system
+	submitResult, err := contract.SubmitTransaction("TakeJob", jobID, technichianID, jobType)
 	if err != nil {
 		switch err := err.(type) {
 		case *client.EndorseError:
@@ -252,7 +278,7 @@ func takeJob(contract *client.Contract) {
 	fmt.Println("Result:", submitResult)
 }
 
-func finishJob(contract *client.Contract) {
+func finishJob(contract *client.Contract, jobID string) {
 	fmt.Println("\n--> Submit Transaction: Finish, function updates a key value pair on the ledger \n")
 
 	submitResult, err := contract.SubmitTransaction("JobDone", jobID)
@@ -306,7 +332,7 @@ func readGC(contract *client.Contract) {
 	fmt.Println("Result: ", string(evaluateResult[:]))
 }
 
-func readJob(contract *client.Contract) {
+func readJob(contract *client.Contract, jobID string) {
 	fmt.Printf("\n--> Evaluate Transaction: Read, function returns key value pair\n")
 
 	evaluateResult, err := contract.EvaluateTransaction("ReadJob", jobID)

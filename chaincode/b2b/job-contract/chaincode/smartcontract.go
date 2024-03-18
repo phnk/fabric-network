@@ -18,7 +18,7 @@ type SmartContract struct {
 // Insert struct field in alphabetic order => to achieve determinism across languages
 // golang keeps the order when marshal to json but doesn't order automatically
 type Job struct {
-	Type     string    `json:"JobType"`
+	Type     string    `json:"Type"`
 	Status   string    `json:"Status"`
 	Pay      int       `json:"Pay"`
 	Deadline time.Time `json:"Deadline"`
@@ -93,7 +93,8 @@ func (s *SmartContract) CreateGeneralContract(ctx contractapi.TransactionContext
 
 }
 
-func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, jobID string, technichianID string) error {
+// Remember to remove jobtype when integrated with jespers system
+func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, jobID string, technichianID string, jobType string) error {
 	exists, err := s.GeneralContractExists(ctx, technichianID)
 	if err != nil {
 		return err
@@ -112,7 +113,8 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 		return fmt.Errorf("Job %s already exists on ledger", jobID)
 	}
 
-	jobType, err := s.JobExistsOffLedger(jobID, technichianID)
+	// Remember to remove jobtype when integrated with jespers system
+	_, err = s.JobExistsOffLedger(jobID, technichianID)
 	if err != nil {
 		return err
 	}
@@ -324,6 +326,10 @@ func (s *SmartContract) JobExistsOnLedger(ctx contractapi.TransactionContextInte
 
 func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (string, error) {
 	// TODO: check jespers system if the job exists or not and what type of job it is
+	// result := rand.Intn(2)
+	// if result == 0 {
+	// 	return "razor", nil
+	// }
 	return "bumpy", nil
 }
 
