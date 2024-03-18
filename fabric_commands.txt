@@ -1,0 +1,17 @@
+peer lifecycle chaincode package tutorial.tar.gz --path ../chaincode/contract-tutorial/ --lang golang --label tutorial_1.0
+
+./network.sh deployCC -ccn tutorial -ccp ../chaincode/contract-tutorial/ -ccl go
+
+peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" -C mychannel -n bumpy --peerAddresses localhost:7051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt" --peerAddresses localhost:9051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt" -c '{"function":"CreateGeneralContract","Args":["1", "3", "1", "100", "Porsön"]}'
+
+./network.sh deployCC -ccn bumpy -ccp ../chaincode/b2b/bumpy-contract -ccl go
+
+./network.sh deployCC -ccn gc -ccp ../chaincode/b2b/job-contract -ccl go
+
+git token: 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
+
+./network.sh deployCC -ccn mower -ccp ../chaincode/c2b/mower -ccl go
+
+./network.sh deployCC -ccn customer -ccp ../chaincode/c2b/customer -ccl go
+
+cd go/src/github.com/nalle631/fabric-network/test-network
