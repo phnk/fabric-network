@@ -1,4 +1,4 @@
-package razor
+package bumpy
 
 import (
 	"encoding/json"
@@ -17,18 +17,19 @@ type SmartContract struct {
 // Insert struct field in alphabetic order => to achieve determinism across languages
 // golang keeps the order when marshal to json but doesn't order automatically
 type Job struct {
-	Type          string    `json:"Type"`
-	Status        string    `json:"Status"`
-	JobPay        int       `json:"JobPay"`
-	InspectionPay int       `json:"InspectionPay"`
-	Deadline      time.Time `json:"Deadline,omitempty"`
-	ID            string    `json:"ID"`
-	Mower         string    `json:"Mower"`
-	Area          string    `json:"Area"`
-	Location      string    `json:"Location"`
+	Type         string    `json:"Type"`
+	Status       string    `json:"Status"`
+	CorrectError bool      `json:"CorrectError"`
+	Pay          int       `json:"Pay"`
+	Deadline     time.Time `json:"Deadline,omitempty"`
+	InspectJob   string    `json:"InspectJob,omitempty"`
+	ID           string    `json:"ID"`
+	Mower        string    `json:"Mower"`
+	Area         string    `json:"Area"`
+	Location     string    `json:"Location"`
 }
 
-func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, technichianID string, jobID string, mower string, area string, location string) (*Job, error) {
+func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, technichianID string, jobID string, mower string, area string, location string, inspectJob string) (*Job, error) {
 	jobExistsOnLedger, err := s.JobExistsOnLedger(ctx, jobID)
 	fmt.Println("Mower: ", mower)
 
@@ -53,15 +54,15 @@ func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, tech
 		return nil, fmt.Errorf("Job %s does not exist off ledger", jobID)
 	}
 	job := Job{
-		Type:          "razor",
-		Status:        "Ongoing",
-		JobPay:        100,
-		InspectionPay: 50,
-		ID:            jobID,
-
-		Mower:    mower,
-		Area:     area,
-		Location: location,
+		Type:         "inspect",
+		Status:       "Ongoing",
+		InspectJob:   inspectJob,
+		CorrectError: true,
+		Pay:          50,
+		ID:           jobID,
+		Mower:        mower,
+		Area:         area,
+		Location:     location,
 	}
 	jobJSON, err := json.Marshal(job)
 	if err != nil {
@@ -75,6 +76,38 @@ func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, tech
 	}
 
 	return &job, nil
+}
+
+func (s *SmartContract) IncorrectError(ctx contractapi.TransactionContextInterface, technicianID string, jobID string) error {
+	inspectJobJSON, err := ctx.GetStub().GetState(jobID)
+	if err != nil {
+		return fmt.Errorf("failed to read from world state: %v", err)
+	}
+	if inspectJobJSON == nil {
+		return fmt.Errorf("the is no general contract for %s", technicianID)
+	}
+
+	var inspectJob Job
+	err = json.Unmarshal(inspectJobJSON, &inspectJob)
+	if err != nil {
+		fmt.Println("Error unmarshalling inspect job: ", err)
+		return err
+	}
+
+	inspectJob.CorrectError = false
+	inspectJobJSON, err = json.Marshal(inspectJob)
+	if err != nil {
+		fmt.Println("Error marshalling job: ", err)
+		return err
+	}
+	err = ctx.GetStub().PutState(jobID, inspectJobJSON)
+	if err != nil {
+		fmt.Println("Error putting job to world state: ", err)
+		return fmt.Errorf("failed to put to world state. %v", err)
+	}
+
+	return nil
+
 }
 
 func (s *SmartContract) JobExistsOnLedger(ctx contractapi.TransactionContextInterface, jobID string) (bool, error) {

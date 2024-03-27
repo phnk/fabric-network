@@ -13,11 +13,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
+	"net/http"
 	"os"
 	"path"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"github.com/hyperledger/fabric-gateway/pkg/identity"
 	"github.com/hyperledger/fabric-protos-go-apiv2/gateway"
@@ -32,89 +33,50 @@ const (
 	certPath     = cryptoPath + "/users/User1@org1.example.com/msp/signcerts/User1@org1.example.com-cert.pem"
 	keyPath      = cryptoPath + "/users/User1@org1.example.com/msp/keystore/"
 	tlsCertPath  = cryptoPath + "/peers/peer0.org1.example.com/tls/ca.crt"
+	tlsKeyPath   = cryptoPath + "/peers/peer0.org1.example.com/tls/server.key"
 	peerEndpoint = "localhost:7051"
 	gatewayPeer  = "peer0.org1.example.com"
 )
+
+type Contract struct {
+	Contract *client.Contract
+}
+type Job struct {
+	Type          string    `json:"Type"`
+	Status        string    `json:"Status"`
+	JobPay        int       `json:"JobPay"`
+	InspectionPay int       `json:"InspectionPay"`
+	Deadline      time.Time `json:"Deadline,omitempty"`
+	ID            string    `json:"ID"`
+	Mower         string    `json:"Mower"`
+	Area          string    `json:"Area"`
+	Location      string    `json:"Location"`
+}
+
+type GeneralContract struct {
+	TechnicianID   string   `json:"TechnicianID"`
+	MonthlyBalance int      `json:"MonthlyBalance"`
+	Jobs           []Job    `json:"Jobs"`
+	JobAuthority   []string `json:"JobAuthority"`
+}
+
+type TakeJobParams struct {
+	JobID   string `json:"JobID"`
+	JobType string `json:"JobType"`
+}
+
+type JobDoneParams struct {
+	JobID string `json:"JobID"`
+}
 
 var technichianID = "Org1MSP"
 
 //var jobID = "9"
 
 func main() {
-	// The gRPC client connection should be shared by all Gateway connections to this endpoint
-	clientConnection := newGrpcConnection()
-	defer clientConnection.Close()
+	router := CreateRouter()
+	StartRouter(router)
 
-	id := newIdentity()
-	id1 := id.Credentials()
-	fmt.Println("id1: ", string(id1[:]))
-	fmt.Println("mspID: ", id.MspID())
-	sign := newSign()
-
-	// Create a Gateway connection for a specific client identity
-	gw, err := client.Connect(
-		id,
-		client.WithSign(sign),
-		client.WithClientConnection(clientConnection),
-		// Default timeouts for different gRPC calls
-		client.WithEvaluateTimeout(5*time.Second),
-		client.WithEndorseTimeout(15*time.Second),
-		client.WithSubmitTimeout(5*time.Second),
-		client.WithCommitStatusTimeout(1*time.Minute),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	defer gw.Close()
-
-	// Override default values for chaincode and channel name as they may differ in testing contexts.
-	chaincodeName := "gc"
-	if ccname := os.Getenv("CHAINCODE_NAME"); ccname != "" {
-		chaincodeName = ccname
-	}
-
-	// chaincodeName2 := "bumpy"
-
-	channelName := "mychannel"
-	if cname := os.Getenv("CHANNEL_NAME"); cname != "" {
-		channelName = cname
-	}
-
-	network := gw.GetNetwork(channelName)
-	contract := network.GetContract(chaincodeName)
-	// contract2 := network.GetContract(chaincodeName2)
-
-	jobtype1 := FiftyFifty()
-	jobtype2 := FiftyFifty()
-	jobtype3 := FiftyFifty()
-	jobtype4 := FiftyFifty()
-
-	create(contract)
-	takeJob(contract, "1", jobtype1)
-	takeJob(contract, "2", jobtype2)
-	takeJob(contract, "3", jobtype3)
-	takeJob(contract, "4", jobtype4)
-	readGC(contract)
-	getAllJobs(contract)
-	finishJob(contract, "2")
-	finishJob(contract, "3")
-	readGC(contract)
-	// createJob(contract2)
-
-}
-
-func FiftyFifty() string {
-	// Use rand.Intn to generate a random integer within a specific range
-	result := rand.Intn(2)
-
-	// If the result is 0, return 1 (50% chance)
-	if result == 0 {
-		return "bumpy"
-	}
-
-	// Otherwise, return 2 (other 50% chance)
-	return "razor"
 }
 
 // newGrpcConnection creates a gRPC connection to the Gateway server.
@@ -184,15 +146,115 @@ func newSign() identity.Sign {
 	return sign
 }
 
-func create(contract *client.Contract) {
+func StartRouter(r *gin.Engine) {
+	r.Run(":8080")
+	// srv := &http.Server{
+	// 	Addr:    ":8080", // Set port number
+	// 	Handler: r,
+	// }
+
+	// err := srv.ListenAndServeTLS(certPath, keyPath)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// r.RunTLS(":8080", tlsCertPath, tlsKeyPath)
+}
+
+func CreateRouter() *gin.Engine {
+	r := gin.Default()
+
+	r.GET("/gc", ReadGCHandler)
+	r.GET("/gc/jobs", GetAllJobsHandler)
+	r.POST("/gc/create", CreateHandler)
+	r.POST("/job/take", TakeJobHandler)
+	r.POST("/job/done_correct", FinishJobCorrectErrorHandler)
+	r.POST("/job/done_wrong", FinishJobWrongErrorHandler)
+	return r
+}
+
+func Create(contract *client.Contract) {
 	fmt.Printf("\n--> Submit Transaction: create, function creates a key value pair on the ledger \n")
 
 	_, err := contract.SubmitTransaction("CreateGeneralContract")
 	if err != nil {
-		panic(fmt.Errorf("failed to submit transaction: %w", err))
+		switch err := err.(type) {
+		case *client.EndorseError:
+			fmt.Printf("Endorse error for transaction %s with gRPC status %v: %s\n", err.TransactionID, status.Code(err), err)
+		case *client.SubmitError:
+			fmt.Printf("Submit error for transaction %s with gRPC status %v: %s\n", err.TransactionID, status.Code(err), err)
+		case *client.CommitStatusError:
+			if errors.Is(err, context.DeadlineExceeded) {
+				fmt.Printf("Timeout waiting for transaction %s commit status: %s", err.TransactionID, err)
+			} else {
+				fmt.Printf("Error obtaining commit status for transaction %s with gRPC status %v: %s\n", err.TransactionID, status.Code(err), err)
+			}
+		case *client.CommitError:
+			fmt.Printf("Transaction %s failed to commit with status %d: %s\n", err.TransactionID, int32(err.Code), err)
+		default:
+			panic(fmt.Errorf("unexpected error type %T: %w", err, err))
+		}
+
+		// Any error that originates from a peer or orderer node external to the gateway will have its details
+		// embedded within the gRPC status error. The following code shows how to extract that.
+		statusErr := status.Convert(err)
+
+		details := statusErr.Details()
+		if len(details) > 0 {
+			fmt.Println("Error Details:")
+
+			for _, detail := range details {
+				switch detail := detail.(type) {
+				case *gateway.ErrorDetail:
+					fmt.Printf("- address: %s, mspId: %s, message: %s\n", detail.Address, detail.MspId, detail.Message)
+				}
+			}
+		}
+	}
+	fmt.Printf("*** Transaction committed successfully\n")
+}
+
+func CreateHandler(c *gin.Context) {
+	clientConnection := newGrpcConnection()
+	defer clientConnection.Close()
+
+	id := newIdentity()
+	sign := newSign()
+
+	// Create a Gateway connection for a specific client identity
+	gw, err := client.Connect(
+		id,
+		client.WithSign(sign),
+		client.WithClientConnection(clientConnection),
+		// Default timeouts for different gRPC calls
+		client.WithEvaluateTimeout(5*time.Second),
+		client.WithEndorseTimeout(15*time.Second),
+		client.WithSubmitTimeout(5*time.Second),
+		client.WithCommitStatusTimeout(1*time.Minute),
+	)
+	if err != nil {
+		panic(err)
 	}
 
-	fmt.Printf("*** Transaction committed successfully\n")
+	defer gw.Close()
+
+	// Override default values for chaincode and channel name as they may differ in testing contexts.
+	chaincodeName := "gc"
+	if ccname := os.Getenv("CHAINCODE_NAME"); ccname != "" {
+		chaincodeName = ccname
+	}
+
+	// chaincodeName2 := "bumpy"
+
+	channelName := "mychannel"
+	if cname := os.Getenv("CHANNEL_NAME"); cname != "" {
+		channelName = cname
+	}
+
+	network := gw.GetNetwork(channelName)
+
+	contract := network.GetContract(chaincodeName)
+	Create(contract)
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "General contract created"})
 }
 
 func createJob(contract *client.Contract, jobID string) {
@@ -234,9 +296,59 @@ func createJob(contract *client.Contract, jobID string) {
 	}
 }
 
+func CreateJobHandler(c *gin.Context) {
+	clientConnection := newGrpcConnection()
+	defer clientConnection.Close()
+
+	id := newIdentity()
+	id1 := id.Credentials()
+	fmt.Println("id1: ", string(id1[:]))
+	fmt.Println("mspID: ", id.MspID())
+	sign := newSign()
+
+	// Create a Gateway connection for a specific client identity
+	gw, err := client.Connect(
+		id,
+		client.WithSign(sign),
+		client.WithClientConnection(clientConnection),
+		// Default timeouts for different gRPC calls
+		client.WithEvaluateTimeout(5*time.Second),
+		client.WithEndorseTimeout(15*time.Second),
+		client.WithSubmitTimeout(5*time.Second),
+		client.WithCommitStatusTimeout(1*time.Minute),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	defer gw.Close()
+
+	// Override default values for chaincode and channel name as they may differ in testing contexts.
+	chaincodeName := "gc"
+	if ccname := os.Getenv("CHAINCODE_NAME"); ccname != "" {
+		chaincodeName = ccname
+	}
+
+	// chaincodeName2 := "bumpy"
+
+	channelName := "mychannel"
+	if cname := os.Getenv("CHANNEL_NAME"); cname != "" {
+		channelName = cname
+	}
+
+	network := gw.GetNetwork(channelName)
+
+	contract := network.GetContract(chaincodeName)
+	createJob(contract, c.Param("jobID"))
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "job created"})
+}
+
 // Submit a transaction to query ledger state.
 func takeJob(contract *client.Contract, jobID string, jobType string) {
 	fmt.Println("\n--> Submit Transaction: Update, function updates a key value pair on the ledger \n")
+
+	fmt.Println("jobID: ", jobID)
+	fmt.Println("jobType: ", jobType)
 
 	//Remember to remove jobtype when integrated with jespers system
 	submitResult, err := contract.SubmitTransaction("TakeJob", jobID, technichianID, jobType)
@@ -278,10 +390,63 @@ func takeJob(contract *client.Contract, jobID string, jobType string) {
 	fmt.Println("Result:", submitResult)
 }
 
-func finishJob(contract *client.Contract, jobID string) {
-	fmt.Println("\n--> Submit Transaction: Finish, function updates a key value pair on the ledger \n")
+func TakeJobHandler(c *gin.Context) {
+	clientConnection := newGrpcConnection()
+	defer clientConnection.Close()
 
-	submitResult, err := contract.SubmitTransaction("JobDone", jobID)
+	id := newIdentity()
+	id1 := id.Credentials()
+	fmt.Println("id1: ", string(id1[:]))
+	fmt.Println("mspID: ", id.MspID())
+	sign := newSign()
+
+	// Create a Gateway connection for a specific client identity
+	gw, err := client.Connect(
+		id,
+		client.WithSign(sign),
+		client.WithClientConnection(clientConnection),
+		// Default timeouts for different gRPC calls
+		client.WithEvaluateTimeout(5*time.Second),
+		client.WithEndorseTimeout(15*time.Second),
+		client.WithSubmitTimeout(5*time.Second),
+		client.WithCommitStatusTimeout(1*time.Minute),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	defer gw.Close()
+
+	// Override default values for chaincode and channel name as they may differ in testing contexts.
+	chaincodeName := "gc"
+	if ccname := os.Getenv("CHAINCODE_NAME"); ccname != "" {
+		chaincodeName = ccname
+	}
+
+	// chaincodeName2 := "bumpy"
+
+	channelName := "mychannel"
+	if cname := os.Getenv("CHANNEL_NAME"); cname != "" {
+		channelName = cname
+	}
+
+	network := gw.GetNetwork(channelName)
+
+	contract := network.GetContract(chaincodeName)
+
+	var params TakeJobParams
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	takeJob(contract, params.JobID, params.JobType)
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "Job added to your general contract."})
+}
+
+func finishJobCorrectError(contract *client.Contract, jobID string) {
+	fmt.Println("\n--> Submit Transaction: Finish job correct error, function updates a key value pair on the ledger \n")
+
+	submitResult, err := contract.SubmitTransaction("JobDoneCorrectError", jobID)
 	if err != nil {
 		switch err := err.(type) {
 		case *client.EndorseError:
@@ -320,16 +485,217 @@ func finishJob(contract *client.Contract, jobID string) {
 	fmt.Println("Result:", submitResult)
 }
 
+func FinishJobCorrectErrorHandler(c *gin.Context) {
+	clientConnection := newGrpcConnection()
+	defer clientConnection.Close()
+
+	id := newIdentity()
+	id1 := id.Credentials()
+	fmt.Println("id1: ", string(id1[:]))
+	fmt.Println("mspID: ", id.MspID())
+	sign := newSign()
+
+	// Create a Gateway connection for a specific client identity
+	gw, err := client.Connect(
+		id,
+		client.WithSign(sign),
+		client.WithClientConnection(clientConnection),
+		// Default timeouts for different gRPC calls
+		client.WithEvaluateTimeout(5*time.Second),
+		client.WithEndorseTimeout(15*time.Second),
+		client.WithSubmitTimeout(5*time.Second),
+		client.WithCommitStatusTimeout(1*time.Minute),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	defer gw.Close()
+
+	// Override default values for chaincode and channel name as they may differ in testing contexts.
+	chaincodeName := "gc"
+	if ccname := os.Getenv("CHAINCODE_NAME"); ccname != "" {
+		chaincodeName = ccname
+	}
+
+	// chaincodeName2 := "bumpy"
+
+	channelName := "mychannel"
+	if cname := os.Getenv("CHANNEL_NAME"); cname != "" {
+		channelName = cname
+	}
+
+	network := gw.GetNetwork(channelName)
+
+	contract := network.GetContract(chaincodeName)
+
+	var params JobDoneParams
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	finishJobCorrectError(contract, params.JobID)
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "finished job with correct error"})
+}
+
+func finishJobWrongError(contract *client.Contract, jobID string) {
+	fmt.Println("\n--> Submit Transaction: FinishJob wrong error, function updates a key value pair on the ledger \n")
+
+	submitResult, err := contract.SubmitTransaction("JobDoneWrongError", jobID)
+	if err != nil {
+		switch err := err.(type) {
+		case *client.EndorseError:
+			fmt.Printf("Endorse error for transaction %s with gRPC status %v: %s\n", err.TransactionID, status.Code(err), err)
+		case *client.SubmitError:
+			fmt.Printf("Submit error for transaction %s with gRPC status %v: %s\n", err.TransactionID, status.Code(err), err)
+		case *client.CommitStatusError:
+			if errors.Is(err, context.DeadlineExceeded) {
+				fmt.Printf("Timeout waiting for transaction %s commit status: %s", err.TransactionID, err)
+			} else {
+				fmt.Printf("Error obtaining commit status for transaction %s with gRPC status %v: %s\n", err.TransactionID, status.Code(err), err)
+			}
+		case *client.CommitError:
+			fmt.Printf("Transaction %s failed to commit with status %d: %s\n", err.TransactionID, int32(err.Code), err)
+		default:
+			panic(fmt.Errorf("unexpected error type %T: %w", err, err))
+		}
+
+		// Any error that originates from a peer or orderer node external to the gateway will have its details
+		// embedded within the gRPC status error. The following code shows how to extract that.
+		statusErr := status.Convert(err)
+
+		details := statusErr.Details()
+		if len(details) > 0 {
+			fmt.Println("Error Details:")
+
+			for _, detail := range details {
+				switch detail := detail.(type) {
+				case *gateway.ErrorDetail:
+					fmt.Printf("- address: %s, mspId: %s, message: %s\n", detail.Address, detail.MspId, detail.Message)
+				}
+			}
+		}
+	}
+
+	fmt.Println("Result:", submitResult)
+}
+
+func FinishJobWrongErrorHandler(c *gin.Context) {
+	clientConnection := newGrpcConnection()
+	defer clientConnection.Close()
+
+	id := newIdentity()
+	id1 := id.Credentials()
+	fmt.Println("id1: ", string(id1[:]))
+	fmt.Println("mspID: ", id.MspID())
+	sign := newSign()
+
+	// Create a Gateway connection for a specific client identity
+	gw, err := client.Connect(
+		id,
+		client.WithSign(sign),
+		client.WithClientConnection(clientConnection),
+		// Default timeouts for different gRPC calls
+		client.WithEvaluateTimeout(5*time.Second),
+		client.WithEndorseTimeout(15*time.Second),
+		client.WithSubmitTimeout(5*time.Second),
+		client.WithCommitStatusTimeout(1*time.Minute),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	defer gw.Close()
+
+	// Override default values for chaincode and channel name as they may differ in testing contexts.
+	chaincodeName := "gc"
+	if ccname := os.Getenv("CHAINCODE_NAME"); ccname != "" {
+		chaincodeName = ccname
+	}
+
+	// chaincodeName2 := "bumpy"
+
+	channelName := "mychannel"
+	if cname := os.Getenv("CHANNEL_NAME"); cname != "" {
+		channelName = cname
+	}
+
+	network := gw.GetNetwork(channelName)
+
+	contract := network.GetContract(chaincodeName)
+	var params JobDoneParams
+	if err := c.ShouldBindJSON(&params); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	finishJobWrongError(contract, params.JobID)
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "finished job with wrong error"})
+}
+
 // Evaluate a transaction by key to query ledger state.
-func readGC(contract *client.Contract) {
+func ReadGC(contract *client.Contract) *GeneralContract {
 	fmt.Printf("\n--> Evaluate Transaction: Read, function returns key value pair\n")
 
 	evaluateResult, err := contract.EvaluateTransaction("ReadGeneralContract", technichianID)
 	if err != nil {
 		panic(fmt.Errorf("failed to evaluate transaction: %w", err))
 	}
+	var gc GeneralContract
+	err = json.Unmarshal(evaluateResult, &gc)
+	if err != nil {
+		panic(fmt.Errorf("failed to unmarshal result: %w", err))
+	}
 
-	fmt.Println("Result: ", string(evaluateResult[:]))
+	fmt.Println("Result: ", gc)
+
+	return &gc
+}
+
+func ReadGCHandler(c *gin.Context) {
+	clientConnection := newGrpcConnection()
+	defer clientConnection.Close()
+
+	id := newIdentity()
+	id1 := id.Credentials()
+	fmt.Println("id1: ", string(id1[:]))
+	fmt.Println("mspID: ", id.MspID())
+	sign := newSign()
+
+	// Create a Gateway connection for a specific client identity
+	gw, err := client.Connect(
+		id,
+		client.WithSign(sign),
+		client.WithClientConnection(clientConnection),
+		// Default timeouts for different gRPC calls
+		client.WithEvaluateTimeout(5*time.Second),
+		client.WithEndorseTimeout(15*time.Second),
+		client.WithSubmitTimeout(5*time.Second),
+		client.WithCommitStatusTimeout(1*time.Minute),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	defer gw.Close()
+
+	// Override default values for chaincode and channel name as they may differ in testing contexts.
+	chaincodeName := "gc"
+	if ccname := os.Getenv("CHAINCODE_NAME"); ccname != "" {
+		chaincodeName = ccname
+	}
+
+	// chaincodeName2 := "bumpy"
+
+	channelName := "mychannel"
+	if cname := os.Getenv("CHANNEL_NAME"); cname != "" {
+		channelName = cname
+	}
+
+	network := gw.GetNetwork(channelName)
+
+	contract := network.GetContract(chaincodeName)
+	readResult := ReadGC(contract)
+	c.IndentedJSON(http.StatusOK, readResult)
 }
 
 func readJob(contract *client.Contract, jobID string) {
@@ -343,15 +709,67 @@ func readJob(contract *client.Contract, jobID string) {
 	fmt.Println("Result: ", string(evaluateResult[:]))
 }
 
-func getAllJobs(contract *client.Contract) {
+func getAllJobs(contract *client.Contract) ([]byte, error) {
 	fmt.Printf("\n--> Evaluate Transaction: Read, function returns key value pair\n")
 
 	evaluateResult, err := contract.EvaluateTransaction("GetAllJobs")
 	if err != nil {
-		panic(fmt.Errorf("failed to evaluate transaction: %w", err))
+		return nil, err
 	}
 
 	fmt.Println("Result: ", string(evaluateResult[:]))
+
+	return evaluateResult, nil
+}
+
+func GetAllJobsHandler(c *gin.Context) {
+	clientConnection := newGrpcConnection()
+	defer clientConnection.Close()
+
+	id := newIdentity()
+	id1 := id.Credentials()
+	fmt.Println("id1: ", string(id1[:]))
+	fmt.Println("mspID: ", id.MspID())
+	sign := newSign()
+
+	// Create a Gateway connection for a specific client identity
+	gw, err := client.Connect(
+		id,
+		client.WithSign(sign),
+		client.WithClientConnection(clientConnection),
+		// Default timeouts for different gRPC calls
+		client.WithEvaluateTimeout(5*time.Second),
+		client.WithEndorseTimeout(15*time.Second),
+		client.WithSubmitTimeout(5*time.Second),
+		client.WithCommitStatusTimeout(1*time.Minute),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	defer gw.Close()
+
+	// Override default values for chaincode and channel name as they may differ in testing contexts.
+	chaincodeName := "gc"
+	if ccname := os.Getenv("CHAINCODE_NAME"); ccname != "" {
+		chaincodeName = ccname
+	}
+
+	// chaincodeName2 := "bumpy"
+
+	channelName := "mychannel"
+	if cname := os.Getenv("CHANNEL_NAME"); cname != "" {
+		channelName = cname
+	}
+
+	network := gw.GetNetwork(channelName)
+
+	contract := network.GetContract(chaincodeName)
+	result, err := getAllJobs(contract)
+	if err != nil {
+		c.IndentedJSON(400, "Couln't get all jobs")
+	}
+	c.IndentedJSON(http.StatusOK, result)
 }
 
 // Submit transaction, passing in the wrong number of arguments ,expected to throw an error containing details of any error responses from the smart contract.

@@ -18,14 +18,15 @@ type SmartContract struct {
 // Insert struct field in alphabetic order => to achieve determinism across languages
 // golang keeps the order when marshal to json but doesn't order automatically
 type Job struct {
-	Type     string    `json:"Type"`
-	Status   string    `json:"Status"`
-	Pay      int       `json:"Pay"`
-	Deadline time.Time `json:"Deadline"`
-	ID       string    `json:"ID"`
-	Mower    string    `json:"Mower"`
-	Area     string    `json:"Area"`
-	Location string    `json:"Location"`
+	Type          string    `json:"Type"`
+	Status        string    `json:"Status"`
+	JobPay        int       `json:"JobPay"`
+	InspectionPay int       `json:"InspectionPay"`
+	Deadline      time.Time `json:"Deadline,omitempty"`
+	ID            string    `json:"ID"`
+	Mower         string    `json:"Mower"`
+	Area          string    `json:"Area"`
+	Location      string    `json:"Location"`
 }
 
 type GeneralContract struct {
@@ -153,7 +154,7 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 	return nil
 }
 
-func (s *SmartContract) JobDone(ctx contractapi.TransactionContextInterface, jobID string) error {
+func (s *SmartContract) JobDoneCorrectError(ctx contractapi.TransactionContextInterface, jobID string) error {
 	mspID, err := ctx.GetClientIdentity().GetMSPID()
 	exists, err := s.GeneralContractExists(ctx, mspID)
 	if err != nil {
@@ -185,7 +186,76 @@ func (s *SmartContract) JobDone(ctx contractapi.TransactionContextInterface, job
 		return err
 	}
 
-	gc.MonthlyBalance = gc.MonthlyBalance + job.Pay
+	gc.MonthlyBalance = gc.MonthlyBalance + job.JobPay + job.InspectionPay
+	job.Status = "Done"
+	err = updateJobStatus(job, gc, "Done")
+
+	if err != nil {
+		fmt.Println("Error updating job status, ", err)
+		return err
+	}
+
+	jobJSON, err := json.Marshal(job)
+
+	if err != nil {
+		fmt.Println("Error marshalling, ", err)
+		return err
+	}
+
+	err = ctx.GetStub().PutState(jobID, jobJSON)
+
+	if err != nil {
+		fmt.Println("Error putting job to world state: ", err)
+		return fmt.Errorf("failed to put to world state. %v", err)
+	}
+
+	gcJSON, err := json.Marshal(gc)
+	if err != nil {
+		fmt.Println("Error marshalling, ", err)
+		return err
+	}
+
+	err = ctx.GetStub().PutState(mspID, gcJSON)
+	if err != nil {
+		fmt.Println("Error putting job to world state: ", err)
+		return fmt.Errorf("failed to put to world state. %v", err)
+	}
+	return nil
+}
+
+func (s *SmartContract) JobDoneWrongError(ctx contractapi.TransactionContextInterface, jobID string) error {
+	mspID, err := ctx.GetClientIdentity().GetMSPID()
+	exists, err := s.GeneralContractExists(ctx, mspID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("General contract for %s does not exist", mspID)
+	}
+
+	isJobDone, err := checkIfDone(jobID)
+	if err != nil {
+		fmt.Println("Error checking if job is done")
+		return err
+	}
+	if !isJobDone {
+		return fmt.Errorf("Job %s is not done", jobID)
+	}
+
+	job, err := s.ReadJob(ctx, jobID, mspID)
+	if err != nil {
+		fmt.Println("Error reading job, ", err)
+		return err
+	}
+
+	gc, err := s.ReadGeneralContract(ctx, mspID)
+
+	if err != nil {
+		fmt.Println("Error reading general contract, ", err)
+		return err
+	}
+
+	gc.MonthlyBalance = gc.MonthlyBalance + job.InspectionPay
 	job.Status = "Done"
 	err = updateJobStatus(job, gc, "Done")
 

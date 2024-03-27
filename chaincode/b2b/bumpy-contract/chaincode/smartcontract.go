@@ -17,14 +17,15 @@ type SmartContract struct {
 // Insert struct field in alphabetic order => to achieve determinism across languages
 // golang keeps the order when marshal to json but doesn't order automatically
 type Job struct {
-	Type     string    `json:"Type"`
-	Status   string    `json:"Status"`
-	Pay      int       `json:"Pay"`
-	Deadline time.Time `json:"Deadline,omitempty"`
-	ID       string    `json:"ID"`
-	Mower    string    `json:"Mower"`
-	Area     string    `json:"Area"`
-	Location string    `json:"Location"`
+	Type          string    `json:"Type"`
+	Status        string    `json:"Status"`
+	JobPay        int       `json:"JobPay"`
+	InspectionPay int       `json:"InspectionPay"`
+	Deadline      time.Time `json:"Deadline,omitempty"`
+	ID            string    `json:"ID"`
+	Mower         string    `json:"Mower"`
+	Area          string    `json:"Area"`
+	Location      string    `json:"Location"`
 }
 
 func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, technichianID string, jobID string, mower string, area string, location string) (*Job, error) {
@@ -52,13 +53,14 @@ func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, tech
 		return nil, fmt.Errorf("Job %s does not exist off ledger", jobID)
 	}
 	job := Job{
-		Type:     "bumpy",
-		Status:   "Ongoing",
-		Pay:      100,
-		ID:       jobID,
-		Mower:    mower,
-		Area:     area,
-		Location: location,
+		Type:          "bumpy",
+		Status:        "Ongoing",
+		JobPay:        50,
+		InspectionPay: 50,
+		ID:            jobID,
+		Mower:         mower,
+		Area:          area,
+		Location:      location,
 	}
 	jobJSON, err := json.Marshal(job)
 	if err != nil {

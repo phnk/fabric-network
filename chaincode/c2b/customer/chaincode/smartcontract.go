@@ -17,12 +17,13 @@ type SmartContract struct {
 // Insert struct field in alphabetic order => to achieve determinism across languages
 // golang keeps the order when marshal to json but doesn't order automatically
 type Customer struct {
-	ID   string   `json:"ID"`
-	SLAs []string `json:"SLAs"`
+	ID   string `json:"ID"`
+	SLAs []SLA  `json:"SLAs"`
 }
 
 type SLA struct {
 	AppraisedValue    int     `json:"AppraisedValue,omitempty"`
+	ServiceLevel      string  `json:"ServiceLevel"`
 	TargetGrassLength float32 `json:"TargetGrassLength"`
 	MaxGrassLength    float32 `json:"MaxGrassLength"`
 	MinGrassLength    float32 `json:"MinGrassLength"`
@@ -41,7 +42,7 @@ func (s *SmartContract) CreateCustomer(ctx contractapi.TransactionContextInterfa
 
 	newCustomer := Customer{
 		ID:   id,
-		SLAs: []string{},
+		SLAs: []SLA{},
 	}
 
 	customerJSON, err := json.Marshal(newCustomer)
@@ -52,7 +53,7 @@ func (s *SmartContract) CreateCustomer(ctx contractapi.TransactionContextInterfa
 	return ctx.GetStub().PutState(id, customerJSON)
 }
 
-func (s *SmartContract) CreateMower(ctx contractapi.TransactionContextInterface, customerID, mowerID string, targetgrasslength float32, maxgrasslength float32, mingrasslength float32) error {
+func (s *SmartContract) CreateMower(ctx contractapi.TransactionContextInterface, customerID, mowerID string, serviceLevel string, targetgrasslength float32, maxgrasslength float32, mingrasslength float32) error {
 	exists, err := s.CustomerExist(ctx, customerID)
 	if err != nil {
 		return err
@@ -71,14 +72,20 @@ func (s *SmartContract) CreateMower(ctx contractapi.TransactionContextInterface,
 	maxgrasslength_string := fmt.Sprintf("%f", maxgrasslength)
 	mingrasslength_string := fmt.Sprintf("%f", mingrasslength)
 
-	invokeArgs := [][]byte{[]byte("CreateSLA"), []byte(mowerID), []byte(targetgrasslength_string), []byte(maxgrasslength_string), []byte(mingrasslength_string)}
+	invokeArgs := [][]byte{[]byte("CreateSLA"), []byte(mowerID), []byte(serviceLevel), []byte(targetgrasslength_string), []byte(maxgrasslength_string), []byte(mingrasslength_string)}
 	response := ctx.GetStub().InvokeChaincode("mower", invokeArgs, ctx.GetStub().GetChannelID())
 	fmt.Println("response status: ", response.Status)
 	if response.Status != shim.OK {
 		fmt.Println("failed to invoke chaincode. Got error: %s", response.Payload)
 		return fmt.Errorf("Failed to invoke chaincode. Got error: %s", response.Payload)
 	}
-	customer.SLAs = append(customer.SLAs, mowerID)
+	var createdSLA SLA
+	err = json.Unmarshal(response.Payload, &createdSLA)
+	if err != nil {
+		fmt.Println("Failed to unmarshal, ", err)
+		return err
+	}
+	customer.SLAs = append(customer.SLAs, createdSLA)
 	customerJSON, err := json.Marshal(customer)
 	if err != nil {
 		return err
@@ -124,18 +131,78 @@ func (s *SmartContract) UpdateTargetGrassLength(ctx contractapi.TransactionConte
 	targetgrasslength_string := fmt.Sprintf("%f", targetgrasslength)
 
 	invokeArgs := [][]byte{[]byte("UpdateTargetGrassLength"), []byte(mowerID), []byte(targetgrasslength_string)}
-	for _, id := range customer.SLAs {
-		if id == mowerID {
+	for i, sla := range customer.SLAs {
+		if sla.ID == mowerID {
 			response := ctx.GetStub().InvokeChaincode("mower", invokeArgs, ctx.GetStub().GetChannelID())
 			fmt.Println("response status: ", response.Status)
 			if response.Status != shim.OK {
 				fmt.Println("failed to invoke chaincode. Got error: %s", response.Payload)
 				return fmt.Errorf("Failed to invoke chaincode. Got error: %s", response.Payload)
 			}
+			var newSLA SLA
+			err = json.Unmarshal(response.Payload, &newSLA)
+			if err != nil {
+				return err
+			}
+			customer.SLAs[i] = newSLA
+			jsonCustomer, err := json.Marshal(customer)
+			if err != nil {
+				return err
+			}
+			err = ctx.GetStub().PutState(customerID, jsonCustomer)
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 	}
 	return fmt.Errorf("could not update target grasslength")
+}
+
+func (s *SmartContract) UpdateServiceLevel(ctx contractapi.TransactionContextInterface, customerID string, mowerID string, serviceLevel string) error {
+	exists, err := s.CustomerExist(ctx, customerID)
+	if err != nil {
+		fmt.Println("error when running CustomerExist")
+		return err
+	}
+	if !exists {
+		fmt.Println("the customer %s does not exist", customerID)
+		return fmt.Errorf("the customer %s does not exist", customerID)
+	}
+
+	customer, readSLAerror := s.ReadCustomer(ctx, customerID)
+	if err != nil {
+		return readSLAerror
+	}
+
+	invokeArgs := [][]byte{[]byte("ChangeServiceLevel"), []byte(mowerID), []byte(serviceLevel)}
+	for i, sla := range customer.SLAs {
+		if sla.ID == mowerID {
+			response := ctx.GetStub().InvokeChaincode("mower", invokeArgs, ctx.GetStub().GetChannelID())
+			fmt.Println("response status: ", response.Status)
+			if response.Status != shim.OK {
+				fmt.Println("failed to invoke chaincode. Got error: %s", response.Payload)
+				return fmt.Errorf("Failed to invoke chaincode. Got error: %s", response.Payload)
+			}
+
+			var newSLA SLA
+			err = json.Unmarshal(response.Payload, &newSLA)
+			if err != nil {
+				return err
+			}
+			customer.SLAs[i] = newSLA
+			jsonCustomer, err := json.Marshal(customer)
+			if err != nil {
+				return err
+			}
+			err = ctx.GetStub().PutState(customerID, jsonCustomer)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("could not update grasslength interval")
 }
 
 func (s *SmartContract) UpdateGrassLengthInterval(ctx contractapi.TransactionContextInterface, customerID string, mowerID string, maxgrasslength float32, mingrasslength float32) error {
@@ -156,13 +223,28 @@ func (s *SmartContract) UpdateGrassLengthInterval(ctx contractapi.TransactionCon
 	mingrasslength_string := fmt.Sprintf("%f", mingrasslength)
 
 	invokeArgs := [][]byte{[]byte("UpdateGrassLengthInterval"), []byte(mowerID), []byte(maxgrasslength_string), []byte(mingrasslength_string)}
-	for _, id := range customer.SLAs {
-		if id == mowerID {
+	for i, sla := range customer.SLAs {
+		if sla.ID == mowerID {
 			response := ctx.GetStub().InvokeChaincode("mower", invokeArgs, ctx.GetStub().GetChannelID())
 			fmt.Println("response status: ", response.Status)
 			if response.Status != shim.OK {
 				fmt.Println("failed to invoke chaincode. Got error: %s", response.Payload)
 				return fmt.Errorf("Failed to invoke chaincode. Got error: %s", response.Payload)
+			}
+
+			var newSLA SLA
+			err = json.Unmarshal(response.Payload, &newSLA)
+			if err != nil {
+				return err
+			}
+			customer.SLAs[i] = newSLA
+			jsonCustomer, err := json.Marshal(customer)
+			if err != nil {
+				return err
+			}
+			err = ctx.GetStub().PutState(customerID, jsonCustomer)
+			if err != nil {
+				return err
 			}
 			return nil
 		}
@@ -186,8 +268,8 @@ func (s *SmartContract) RemoveMowerSLA(ctx contractapi.TransactionContextInterfa
 	}
 
 	invokeArgs := [][]byte{[]byte("DeleteSLA"), []byte(mowerID)}
-	for i, id := range customer.SLAs {
-		if id == mowerID {
+	for i, SLA := range customer.SLAs {
+		if SLA.ID == mowerID {
 			response := ctx.GetStub().InvokeChaincode("mower", invokeArgs, ctx.GetStub().GetChannelID())
 			fmt.Println("response status: ", response.Status)
 			if response.Status != shim.OK {
@@ -208,9 +290,11 @@ func (s *SmartContract) RemoveMowerSLA(ctx contractapi.TransactionContextInterfa
 	return fmt.Errorf("could not find mower with ID %s", mowerID)
 }
 
-func remove(s []string, i int) []string {
-	s[i] = s[len(s)-1]
-	return s[:len(s)-1]
+func remove(slice []SLA, i int) []SLA {
+	if i >= 0 && i < len(slice) {
+		return append(slice[:i], slice[i+1:]...) // ... is the spread operator
+	}
+	return slice // If index is out of bounds, return the original slice
 }
 
 // AssetExists returns true when asset with given ID exists in world state
@@ -237,25 +321,9 @@ func (s *SmartContract) ReadMowerSLA(ctx contractapi.TransactionContextInterface
 		return nil, readSLAerror
 	}
 
-	invokeArgs := [][]byte{[]byte("ReadSLA"), []byte(mowerID)}
-	for _, id := range customer.SLAs {
-		if id == mowerID {
-			response := ctx.GetStub().InvokeChaincode("mower", invokeArgs, ctx.GetStub().GetChannelID())
-
-			fmt.Println("response status: ", response.Status)
-			fmt.Println("response.payload: ", response.Payload)
-			if response.Status != shim.OK {
-				fmt.Println("failed to invoke chaincode. Got error: %s", response.Payload)
-				return nil, fmt.Errorf("Failed to invoke chaincode. Got error: %s", response.Payload)
-			}
-
-			var slaResponse SLA
-			err = json.Unmarshal(response.Payload, &slaResponse)
-			if err != nil {
-				return nil, err
-			}
-
-			return &slaResponse, nil
+	for _, sla := range customer.SLAs {
+		if sla.ID == mowerID {
+			return &sla, nil
 		}
 	}
 	return nil, fmt.Errorf("could not find mower with ID %s", mowerID)
@@ -276,8 +344,8 @@ func (s *SmartContract) GetAllSLA(ctx contractapi.TransactionContextInterface, c
 		return nil, readSLAerror
 	}
 	var allSLA []*SLA
-	for _, slaID := range customer.SLAs {
-		sla, err := s.ReadMowerSLA(ctx, customerID, slaID)
+	for _, SLA := range customer.SLAs {
+		sla, err := s.ReadMowerSLA(ctx, customerID, SLA.ID)
 		if err != nil {
 			return nil, err
 		}
