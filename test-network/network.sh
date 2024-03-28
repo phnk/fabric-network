@@ -161,6 +161,7 @@ function createOrgs() {
 
   # Create crypto material using cryptogen
   if [ "$CRYPTO" == "cryptogen" ]; then
+    infoln "in cryptogen"
     which cryptogen
     if [ "$?" -ne 0 ]; then
       fatalln "cryptogen tool not found. exiting"
@@ -289,16 +290,23 @@ function networkUp() {
 
   # generate artifacts if they don't exist
   if [ ! -d "organizations/peerOrganizations" ]; then
+    infoln "before createOrgs"
     createOrgs
+    infoln "after createOrgs"
   fi
 
   COMPOSE_FILES="-f compose/${COMPOSE_FILE_BASE} -f compose/${CONTAINER_CLI}/${CONTAINER_CLI}-${COMPOSE_FILE_BASE}"
+  infoln "after compose_files"
 
   if [ "${DATABASE}" == "couchdb" ]; then
     COMPOSE_FILES="${COMPOSE_FILES} -f compose/${COMPOSE_FILE_COUCH} -f compose/${CONTAINER_CLI}/${CONTAINER_CLI}-${COMPOSE_FILE_COUCH}"
   fi
 
+  infoln "after couch"
+
   DOCKER_SOCK="${DOCKER_SOCK}" ${CONTAINER_CLI_COMPOSE} ${COMPOSE_FILES} up -d 2>&1
+
+  infoln "after docker_sock"
 
   $CONTAINER_CLI ps -a
   if [ $? -ne 0 ]; then
