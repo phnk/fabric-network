@@ -281,8 +281,11 @@ function createOrgs() {
 
 # Bring up the peer and orderer nodes using docker compose.
 function networkUp() {
+  infoln "Before checkPrereqs"
 
   checkPrereqs
+
+  infoln "After checkPrereqs"
 
   # generate artifacts if they don't exist
   if [ ! -d "organizations/peerOrganizations" ]; then
