@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	gcChaincode, err := contractapi.NewChaincode(gc.SmartContract{})
+	gcChaincode, err := contractapi.NewChaincode(&gc.SmartContract{})
 
 	if err != nil {
 		log.Panicf("Error creating asset-transfer-private-data chaincode: %v", err)
