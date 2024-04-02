@@ -3,9 +3,19 @@ package bumpy
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
+	"github.com/nalle631/arrowheadfunctions"
+)
+
+const (
+	arrowheadcertsPath  = "../certs"
+	arrowheadKey        = arrowheadcertsPath + "/technician-key.pem"
+	arrowheadCert       = arrowheadcertsPath + "technician-cert.pem"
+	arrowheadTruststore = arrowheadcertsPath + "/truststore.pem"
 )
 
 // SmartContract provides functions for managing an Asset
@@ -102,6 +112,40 @@ func (s *SmartContract) JobExistsOnLedger(ctx contractapi.TransactionContextInte
 }
 
 func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (bool, error) {
+	orchIP := "35.228.60.153"
+	orchPort := 8443
+	var requestBody arrowheadfunctions.Orchestrate
+	requestBody.OrchestrationFlags.EnableInterCloud = false
+	requestBody.OrchestrationFlags.OverrideStore = false
+	requestBody.RequestedService.InterfaceRequirements = []string{"HTTP-SECURE-JSON"}
+	requestBody.RequestedService.ServiceDefinitionRequirement = "assign-worker"
+	requestBody.RequesterSystem.SystemName = "technician"
+	requestBody.RequesterSystem.AuthenticationInfo = ""
+	requestBody.RequesterSystem.Port = 5000
+	requestBody.RequesterSystem.Address = "35.228.161.184"
+
 	// TODO: check jespers system if the job exists or not and what type of job it is
+	var orchResponse arrowheadfunctions.OrchResponse
+	jsonOrchResponse := arrowheadfunctions.Orchestration(requestBody, orchIP, orchPort, arrowheadCert, arrowheadKey, arrowheadTruststore)
+	json.Unmarshal(jsonOrchResponse, &orchResponse)
+	chosenResponse := orchResponse.Response[0]
+	fmt.Println("response from neginfo: ", chosenResponse)
+
+	req, err := http.NewRequest("POST", "https://"+chosenResponse.Provider.Address+":"+strconv.Itoa(chosenResponse.Provider.Port)+chosenResponse.ServiceUri, nil)
+	if err != nil {
+		return false, err
+	}
+
+	client := arrowheadfunctions.GetClient(arrowheadCert, arrowheadKey, arrowheadTruststore)
+	serviceResp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error making HTTP request using client. ", err)
+		return false, err
+	}
+	if serviceResp.StatusCode == 404 {
+		return false, nil
+	}
+
 	return true, nil
+
 }
