@@ -22,20 +22,25 @@ import (
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"github.com/hyperledger/fabric-gateway/pkg/identity"
 	"github.com/hyperledger/fabric-protos-go-apiv2/gateway"
+	"github.com/nalle631/arrowheadfunctions"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 )
 
 const (
-	mspID        = "Org1MSP"
-	cryptoPath   = "../../test-network/organizations/peerOrganizations/org1.example.com"
-	certPath     = cryptoPath + "/users/User1@org1.example.com/msp/signcerts/User1@org1.example.com-cert.pem"
-	keyPath      = cryptoPath + "/users/User1@org1.example.com/msp/keystore/"
-	tlsCertPath  = cryptoPath + "/peers/peer0.org1.example.com/tls/ca.crt"
-	tlsKeyPath   = cryptoPath + "/peers/peer0.org1.example.com/tls/server.key"
-	peerEndpoint = "localhost:7051"
-	gatewayPeer  = "peer0.org1.example.com"
+	mspID               = "Org1MSP"
+	cryptoPath          = "../../test-network/organizations/peerOrganizations/org1.example.com"
+	certPath            = cryptoPath + "/users/User1@org1.example.com/msp/signcerts/User1@org1.example.com-cert.pem"
+	keyPath             = cryptoPath + "/users/User1@org1.example.com/msp/keystore/"
+	tlsCertPath         = cryptoPath + "/peers/peer0.org1.example.com/tls/ca.crt"
+	tlsKeyPath          = cryptoPath + "/peers/peer0.org1.example.com/tls/server.key"
+	peerEndpoint        = "localhost:7051"
+	gatewayPeer         = "peer0.org1.example.com"
+	arrowheadcertsPath  = "../../chaincode/b2b/certs"
+	arrowheadKey        = arrowheadcertsPath + "/technician-key.pem"
+	arrowheadCert       = arrowheadcertsPath + "technician-cert.pem"
+	arrowheadTruststore = arrowheadcertsPath + "/truststore.pem"
 )
 
 type Contract struct {
@@ -74,6 +79,23 @@ var technichianID = "Org1MSP"
 //var jobID = "9"
 
 func main() {
+	serviceRegistryIP := "35.228.60.153"
+	serviceRegistryPort := 8443
+	var rsrDTO arrowheadfunctions.System
+	rsrDTO.Address = "35.228.161.184"
+	rsrDTO.AuthenticationInfo = ""
+	rsrDTO.Port = 5000
+	rsrDTO.SystemName = "technician"
+	arrowheadfunctions.RegisterSystem(rsrDTO, serviceRegistryIP, serviceRegistryPort, arrowheadCert, arrowheadKey, arrowheadTruststore)
+	var service arrowheadfunctions.Service
+	service.Interfaces = []string{"HTTP-INSECURE-JSON"}
+	service.Metadata.Method = "POST"
+	service.ProviderSystem = rsrDTO
+	service.Secure = "CERTIFICATE"
+	service.ServiceDefinition = "assign-worker"
+	service.ServiceUri = "/job/take"
+
+	arrowheadfunctions.PublishService(service, serviceRegistryIP, serviceRegistryPort, arrowheadCert, arrowheadKey, arrowheadTruststore)
 	router := CreateRouter()
 	StartRouter(router)
 
@@ -147,7 +169,7 @@ func newSign() identity.Sign {
 }
 
 func StartRouter(r *gin.Engine) {
-	r.Run(":8080")
+	r.Run(":5000")
 	// srv := &http.Server{
 	// 	Addr:    ":8080", // Set port number
 	// 	Handler: r,

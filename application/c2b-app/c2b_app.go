@@ -163,7 +163,7 @@ func newSign() identity.Sign {
 }
 
 func StartRouter(r *gin.Engine) {
-	r.Run(":8081")
+	r.Run(":5001")
 	// srv := &http.Server{
 	// 	Addr:    ":8080", // Set port number
 	// 	Handler: r,
@@ -181,6 +181,7 @@ func CreateRouter() *gin.Engine {
 
 	r.GET("/contract/:id", ReadCustomerHandler)
 	r.GET("/sla/:id", ReadSLAHandler)
+	r.GET("/sla/:id/servicelevel", GetServiceLevelHandler)
 	r.POST("/contract", CreateCustomerHandler)
 	r.POST(":customer_id/sla", CreateMowerHandler)
 	r.PUT("/sla/:id/grasslength", updateTargetGrassLengthHandler)
@@ -949,6 +950,57 @@ func ReadSLAHandler(c *gin.Context) {
 		return
 	}
 	c.IndentedJSON(http.StatusOK, sla)
+
+}
+
+func GetServiceLevelHandler(c *gin.Context) {
+	clientConnection := newGrpcConnection()
+	defer clientConnection.Close()
+
+	id := newIdentity()
+	sign := newSign()
+
+	// Create a Gateway connection for a specific client identity
+	gw, err := client.Connect(
+		id,
+		client.WithSign(sign),
+		client.WithClientConnection(clientConnection),
+		// Default timeouts for different gRPC calls
+		client.WithEvaluateTimeout(5*time.Second),
+		client.WithEndorseTimeout(15*time.Second),
+		client.WithSubmitTimeout(5*time.Second),
+		client.WithCommitStatusTimeout(1*time.Minute),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	defer gw.Close()
+
+	// Override default values for chaincode and channel name as they may differ in testing contexts.
+	chaincodeName := "mower"
+	if ccname := os.Getenv("CHAINCODE_NAME"); ccname != "" {
+		chaincodeName = ccname
+	}
+
+	// chaincodeName2 := "bumpy"
+
+	channelName := "customer"
+	if cname := os.Getenv("CHANNEL_NAME"); cname != "" {
+		channelName = cname
+	}
+
+	network := gw.GetNetwork(channelName)
+
+	mowerID := c.Param("id")
+	contract := network.GetContract(chaincodeName)
+	sla, err := readSLA(contract, mowerID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, sla.ServiceLevel)
 
 }
 

@@ -21,6 +21,9 @@ package-lock.json
 .classpath
 .settings
 
+#Certs
+certs/
+
 # installed Fabric binaries etc.
 bin/
 builders/

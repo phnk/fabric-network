@@ -3,10 +3,23 @@ package gc
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"strconv"
 	"time"
+
+	"github.com/nalle631/arrowheadfunctions"
 
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
+)
+
+const (
+	arrowheadcertsPath  = "../certs"
+	arrowheadKey        = arrowheadcertsPath + "/technician-key.pem"
+	arrowheadCert       = arrowheadcertsPath + "technician-cert.pem"
+	arrowheadTruststore = arrowheadcertsPath + "/truststore.pem"
 )
 
 // SmartContract provides functions for managing an Asset
@@ -25,8 +38,7 @@ type Job struct {
 	Deadline      time.Time `json:"Deadline,omitempty"`
 	ID            string    `json:"ID"`
 	Mower         string    `json:"Mower"`
-	Area          string    `json:"Area"`
-	Location      string    `json:"Location"`
+	Address       string    `json:"Address"`
 }
 
 type GeneralContract struct {
@@ -34,6 +46,18 @@ type GeneralContract struct {
 	MonthlyBalance int      `json:"MonthlyBalance"`
 	Jobs           []Job    `json:"Jobs"`
 	JobAuthority   []string `json:"JobAuthority"`
+}
+
+type OffLedgerResponse struct {
+	WorkID    string    `json:"workId"`
+	ProductID string    `json:"productId"`
+	EventType string    `json:"eventType"`
+	Address   string    `json:"address"`
+	StartTime time.Time `json:"startTime"`
+}
+
+type ServiceLevelResponse struct {
+	ServiceLevel string `json:"ServiceLevel"`
 }
 
 // InitLedger adds a base set of assets to the ledger
@@ -95,7 +119,7 @@ func (s *SmartContract) CreateGeneralContract(ctx contractapi.TransactionContext
 }
 
 // Remember to remove jobtype when integrated with jespers system
-func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, jobID string, technichianID string, jobType string) error {
+func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, jobID string, technichianID string) error {
 	exists, err := s.GeneralContractExists(ctx, technichianID)
 	if err != nil {
 		return err
@@ -115,29 +139,43 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 	}
 
 	// Remember to remove jobtype when integrated with jespers system
-	_, err = s.JobExistsOffLedger(jobID, technichianID)
-	if err != nil {
-		return err
-	}
-	mower, err := getMower(jobID)
-	if err != nil {
-		return err
-	}
-	area, err := getArea(jobID)
-	if err != nil {
-		return err
-	}
-	location, err := getLocation(jobID)
+	jobInfo, err := s.JobExistsOffLedger(jobID, technichianID)
 	if err != nil {
 		return err
 	}
 
-	if jobType == "" {
+	if jobInfo.WorkID == "" {
 		return fmt.Errorf("Job %s does not exist in external system", jobID)
 	}
 
-	invokeArgs := [][]byte{[]byte("Create"), []byte(technichianID), []byte(jobID), []byte(mower), []byte(area), []byte(location)}
-	response := ctx.GetStub().InvokeChaincode(jobType, invokeArgs, ctx.GetStub().GetChannelID())
+	serviceLevelResponse, err := http.Get("http://34.88.37.165:5001/sla/" + jobInfo.ProductID + "/servicelevel")
+	if err != nil {
+		return err
+	}
+
+	serviceLevelJson, err := io.ReadAll(serviceLevelResponse.Body)
+	if err != nil {
+		return err
+	}
+
+	var servicelevel ServiceLevelResponse
+	err = json.Unmarshal(serviceLevelJson, &servicelevel)
+	if err != nil {
+		return err
+	}
+	switch servicelevel.ServiceLevel {
+	case "standard":
+		jobInfo.StartTime = jobInfo.StartTime.AddDate(0, 0, 7)
+
+	case "gold":
+		jobInfo.StartTime = jobInfo.StartTime.AddDate(0, 0, 5)
+
+	case "platinum":
+		jobInfo.StartTime = jobInfo.StartTime.AddDate(0, 0, 3)
+	}
+	deadline := jobInfo.StartTime.String()
+	invokeArgs := [][]byte{[]byte("Create"), []byte(technichianID), []byte(jobID), []byte(jobInfo.ProductID), []byte(jobInfo.Address), []byte(deadline)}
+	response := ctx.GetStub().InvokeChaincode(jobInfo.EventType, invokeArgs, ctx.GetStub().GetChannelID())
 	fmt.Println("response status: ", response.Status)
 	if response.Status != shim.OK {
 		fmt.Println("failed to invoke chaincode. Got error: %s", response.Payload)
@@ -394,25 +432,48 @@ func (s *SmartContract) JobExistsOnLedger(ctx contractapi.TransactionContextInte
 	return false, nil
 }
 
-func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (string, error) {
+func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*OffLedgerResponse, error) {
+	serviceRegistryIP := "35.228.60.153"
+	serviceRegistryPort := 8443
 	// TODO: check jespers system if the job exists or not and what type of job it is
-	// result := rand.Intn(2)
-	// if result == 0 {
-	// 	return "razor", nil
-	// }
-	return "bumpy", nil
-}
+	var orchBody arrowheadfunctions.Orchestrate
+	var orchSystem arrowheadfunctions.System
+	orchSystem.Address = "35.228.161.184"
+	orchSystem.AuthenticationInfo = ""
+	orchSystem.Port = 5000
+	orchSystem.SystemName = "technician"
+	orchBody.OrchestrationFlags.EnableInterCloud = false
+	orchBody.OrchestrationFlags.OverrideStore = false
+	orchBody.RequestedService.InterfaceRequirements = []string{"HTTP-SECURE-JSON"}
+	orchBody.RequestedService.ServiceDefinitionRequirement = "assign-worker"
+	orchBody.RequesterSystem = orchSystem
+	orchResponseJSON := arrowheadfunctions.Orchestration(orchBody, serviceRegistryIP, serviceRegistryPort, arrowheadCert, arrowheadKey, arrowheadTruststore)
+	var orchResponse arrowheadfunctions.OrchResponse
+	json.Unmarshal(orchResponseJSON, &orchResponse)
+	choosenSystem := orchResponse.Response[0]
+	fmt.Println("response from neginfo: ", choosenSystem)
 
-func getMower(jobID string) (string, error) {
-	return "1", nil
-}
+	req, err := http.NewRequest("POST", "https://"+choosenSystem.Provider.Address+":"+strconv.Itoa(choosenSystem.Provider.Port)+choosenSystem.ServiceUri, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-func getArea(jobID string) (string, error) {
-	return "100", nil
-}
+	client := arrowheadfunctions.GetClient("certificates/usercert.pem", "certificates/userkey.pem", "certificates/truststore.pem")
+	serviceResp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error making HTTP request using client. ", err)
+	}
+	body, err := io.ReadAll(serviceResp.Body)
+	if err != nil {
+		fmt.Println("Error reading response body. ", err)
+	}
+	var assignWorkResponse OffLedgerResponse
+	err = json.Unmarshal(body, &assignWorkResponse)
+	if err != nil {
+		return nil, err
+	}
 
-func getLocation(jobID string) (string, error) {
-	return "Porsön", nil
+	return &assignWorkResponse, nil
 }
 
 // GetAllAssets returns all assets found in world state

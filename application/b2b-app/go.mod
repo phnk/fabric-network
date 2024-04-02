@@ -5,6 +5,7 @@ go 1.21.6
 require (
 	github.com/hyperledger/fabric-gateway v1.4.0
 	github.com/hyperledger/fabric-protos-go-apiv2 v0.3.3
+	github.com/nalle631/arrowheadfunctions v1.5.2
 	google.golang.org/grpc v1.61.1
 )
 

@@ -41,8 +41,8 @@ github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
 github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
-github.com/hyperledger/fabric-chaincode-go v0.0.0-20230731094759-d626e9ab09b9 h1:XV1mxAmExeWraP5AmBSB1v415jMCSFJ087dRUiI6f6o=
-github.com/hyperledger/fabric-chaincode-go v0.0.0-20230731094759-d626e9ab09b9/go.mod h1:WEd2Rlyj47/8b0VvH/zYPKamLdU3hg7jWqV8XEBTLOk=
+github.com/hyperledger/fabric-chaincode-go v0.0.0-20240124143825-7dec3c7e7d45 h1:tZeJCTwbAE3cwi6XId+dYd/gTtfTKzZ3uEb1ksvQf7I=
+github.com/hyperledger/fabric-chaincode-go v0.0.0-20240124143825-7dec3c7e7d45/go.mod h1:YZBt6/ZlJCzyPoWecbfFp34G+ZIYKodTQA46c0sxHIk=
 github.com/hyperledger/fabric-contract-api-go v1.2.2 h1:zun9/BmaIWFSSOkfQXikdepK0XDb7MkJfc/lb5j3ku8=
 github.com/hyperledger/fabric-contract-api-go v1.2.2/go.mod h1:UnFLlRFn8GvXE7mXxWtU+bESM7fb5YzsKo1DA16vvaE=
 github.com/hyperledger/fabric-protos-go v0.3.0 h1:MXxy44WTMENOh5TI8+PCK2x6pMj47Go2vFRKDHB2PZs=
@@ -73,6 +73,8 @@ github.com/mailru/easyjson v0.7.7 h1:UGYAvKxe3sBsEDzO8ZeWOSlIQfWFlxbzLZe7hwFURr0
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
 github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
 github.com/mitchellh/mapstructure v1.1.2/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
+github.com/nalle631/arrowheadfunctions v1.5.2 h1:G2ollyRIivik+KnblWaAco/T1oxHgRqBF7TWM5KyvG4=
+github.com/nalle631/arrowheadfunctions v1.5.2/go.mod h1:lpz2pWgOoFD8bdkJKLVYYHRX7uCUJ6izyVD+pHjXYPI=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e/go.mod h1:pJLUxLENpZxwdsKMEsNbx1VGcRFpLqf3715MtcvvzbA=

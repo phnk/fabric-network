@@ -24,11 +24,10 @@ type Job struct {
 	Deadline      time.Time `json:"Deadline,omitempty"`
 	ID            string    `json:"ID"`
 	Mower         string    `json:"Mower"`
-	Area          string    `json:"Area"`
-	Location      string    `json:"Location"`
+	Address       string    `json:"Address"`
 }
 
-func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, technichianID string, jobID string, mower string, area string, location string) (*Job, error) {
+func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, technichianID string, jobID string, mower string, address string, deadline string) (*Job, error) {
 	jobExistsOnLedger, err := s.JobExistsOnLedger(ctx, jobID)
 	fmt.Println("Mower: ", mower)
 
@@ -52,15 +51,21 @@ func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, tech
 		fmt.Println("Job does not exist")
 		return nil, fmt.Errorf("Job %s does not exist off ledger", jobID)
 	}
+
+	timeDeadline, err := time.Parse("2006-01-02T15:04:05Z07:00", deadline)
+	if err != nil {
+		fmt.Println("Error parsing deadline: ", err)
+		return nil, err
+	}
 	job := Job{
 		Type:          "bumpy",
 		Status:        "Ongoing",
+		Deadline:      timeDeadline,
 		JobPay:        50,
 		InspectionPay: 50,
 		ID:            jobID,
 		Mower:         mower,
-		Area:          area,
-		Location:      location,
+		Address:       address,
 	}
 	jobJSON, err := json.Marshal(job)
 	if err != nil {
