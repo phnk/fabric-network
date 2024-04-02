@@ -148,7 +148,7 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 		return fmt.Errorf("Job %s does not exist in external system", jobID)
 	}
 
-	serviceLevelResponse, err := http.Get("http://34.88.37.165:5001/sla/" + jobInfo.ProductID + "/servicelevel")
+	serviceLevelResponse, err := http.Get("http://35.228.161.184:5001/sla/" + jobInfo.ProductID + "/servicelevel")
 	if err != nil {
 		return err
 	}

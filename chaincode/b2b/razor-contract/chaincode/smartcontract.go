@@ -46,6 +46,7 @@ type Job struct {
 
 func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, technichianID string, jobID string, mower string, address string, deadline string) (*Job, error) {
 	jobExistsOnLedger, err := s.JobExistsOnLedger(ctx, jobID)
+
 	fmt.Println("Mower: ", mower)
 
 	if err != nil {
