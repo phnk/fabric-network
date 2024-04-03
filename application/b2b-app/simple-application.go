@@ -369,7 +369,7 @@ func takeJob(contract *client.Contract, jobID string) {
 	fmt.Println("\n--> Submit Transaction: TakeJob, function updates a key value pair on the ledger \n")
 
 	fmt.Println("jobID: ", jobID)
-	fmt.Println("jobType: ", jobType)
+	
 
 	//Remember to remove jobtype when integrated with jespers system
 	submitResult, err := contract.SubmitTransaction("TakeJob", jobID, technichianID)
