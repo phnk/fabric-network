@@ -521,11 +521,13 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*
 	if err != nil {
 		fmt.Println("Error reading response body. ", err)
 	}
+	fmt.Println("body: ", body)
 	var assignWorkResponse OffLedgerResponse
 	err = json.Unmarshal(body, &assignWorkResponse)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("OffLedgerResponse: ", assignWorkResponse)
 
 	return &assignWorkResponse, nil
 }
