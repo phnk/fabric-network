@@ -1,8 +1,10 @@
 package razor
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -25,6 +27,11 @@ const (
 // SmartContract provides functions for managing an Asset
 type SmartContract struct {
 	contractapi.Contract
+}
+
+type OffLedgerRequest struct {
+	WorkID   string `json:"workId"`
+	WorkerID string `json:"workerId"`
 }
 
 type OffLedgerResponse struct {
@@ -184,7 +191,16 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (b
 	fmt.Println("Chosen response: ", chosenResponse)
 	fmt.Println("response from neginfo: ", chosenResponse)
 
-	req, err := http.NewRequest("POST", "https://"+chosenResponse.Provider.Address+":"+strconv.Itoa(chosenResponse.Provider.Port)+chosenResponse.ServiceUri, nil)
+	var offLedgerRequest OffLedgerRequest
+	offLedgerRequest.WorkID = jobID
+	offLedgerRequest.WorkerID = technicianID
+
+	marshalledRequest, err := json.Marshal(offLedgerRequest)
+	if err != nil {
+		log.Fatalf("impossible to marshall teacher: %s", err)
+	}
+
+	req, err := http.NewRequest("POST", "https://"+chosenResponse.Provider.Address+":"+strconv.Itoa(chosenResponse.Provider.Port)+chosenResponse.ServiceUri, bytes.NewReader(marshalledRequest))
 	if err != nil {
 		return false, err
 	}

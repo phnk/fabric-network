@@ -1,6 +1,7 @@
 package gc
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -59,7 +60,10 @@ type OffLedgerResponse struct {
 	Address   string    `json:"address"`
 	StartTime time.Time `json:"startTime"`
 }
-
+type OffLedgerRequest struct {
+	WorkID   string `json:"workId"`
+	WorkerID string `json:"workerId"`
+}
 type ServiceLevelResponse struct {
 	ServiceLevel string `json:"ServiceLevel"`
 }
@@ -507,7 +511,16 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*
 	fmt.Println("Choosen system: ", choosenSystem)
 	fmt.Println("response from neginfo: ", choosenSystem)
 
-	req, err := http.NewRequest("POST", "https://"+choosenSystem.Provider.Address+":"+strconv.Itoa(choosenSystem.Provider.Port)+choosenSystem.ServiceUri, nil)
+	var offLedgerRequest OffLedgerRequest
+	offLedgerRequest.WorkID = jobID
+	offLedgerRequest.WorkerID = technicianID
+
+	marshalledRequest, err := json.Marshal(offLedgerRequest)
+	if err != nil {
+		log.Fatalf("impossible to marshall teacher: %s", err)
+	}
+
+	req, err := http.NewRequest("POST", "https://"+choosenSystem.Provider.Address+":"+strconv.Itoa(choosenSystem.Provider.Port)+choosenSystem.ServiceUri, bytes.NewReader(marshalledRequest))
 	if err != nil {
 		fmt.Println("fatal error when creating request")
 		log.Fatal(err)
