@@ -115,25 +115,25 @@ func (s *SmartContract) JobExistsOnLedger(ctx contractapi.TransactionContextInte
 	return true, nil
 }
 
-func createFile(dirName, filename string, content string) error {
+func createFile(dirName, filename string, content string) (string, error) {
 	filename = path.Join(dirName, filename)
 	f, err := os.Create(filename)
 	if err != nil {
 		fmt.Println("Error creating file")
-		return err
+		return "", err
 	}
 	l, err := f.WriteString(content)
 	if err != nil {
 		fmt.Println("Error writing to file")
-		return err
+		return "", err
 	}
 	fmt.Println(l, "bytes written successfully")
 	err = f.Close()
 
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return filename, nil
 
 }
 
@@ -144,17 +144,17 @@ func createDirectory(dirName string) {
 func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (bool, error) {
 	dirName := "tmp"
 	createDirectory(dirName)
-	err := createFile(dirName, arrowheadCert, arrowheadCertString)
+	certPath, err := createFile(dirName, arrowheadCert, arrowheadCertString)
 	if err != nil {
 		return false, err
 	}
 
-	err = createFile(dirName, arrowheadKey, arrowheadKeyString)
+	keyPath, err := createFile(dirName, arrowheadKey, arrowheadKeyString)
 	if err != nil {
 		return false, err
 	}
 
-	err = createFile(dirName, arrowheadTruststore, arrowheadTruststoreString)
+	trustsorePath, err := createFile(dirName, arrowheadTruststore, arrowheadTruststoreString)
 	if err != nil {
 		return false, err
 	}
@@ -172,7 +172,7 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (b
 
 	// TODO: check jespers system if the job exists or not and what type of job it is
 	var orchResponse arrowheadfunctions.OrchResponse
-	jsonOrchResponse := arrowheadfunctions.Orchestration(requestBody, orchIP, orchPort, arrowheadCert, arrowheadKey, arrowheadTruststore)
+	jsonOrchResponse := arrowheadfunctions.Orchestration(requestBody, orchIP, orchPort, certPath, keyPath, trustsorePath)
 	json.Unmarshal(jsonOrchResponse, &orchResponse)
 	chosenResponse := orchResponse.Response[0]
 	fmt.Println("response from neginfo: ", chosenResponse)
@@ -182,7 +182,7 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (b
 		return false, err
 	}
 
-	client := arrowheadfunctions.GetClient(arrowheadCert, arrowheadKey, arrowheadTruststore)
+	client := arrowheadfunctions.GetClient(certPath, keyPath, trustsorePath)
 	serviceResp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Error making HTTP request using client. ", err)

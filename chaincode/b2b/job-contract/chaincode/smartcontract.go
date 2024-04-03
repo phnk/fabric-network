@@ -443,42 +443,42 @@ func createDirectory(dirName string) {
 	os.Mkdir(dirName, 0777)
 }
 
-func createFile(dirName, filename string, content string) error {
+func createFile(dirName, filename string, content string) (string, error) {
 	filename = path.Join(dirName, filename)
 	f, err := os.Create(filename)
 	if err != nil {
 		fmt.Println("Error creating file")
-		return err
+		return "", err
 	}
 	l, err := f.WriteString(content)
 	if err != nil {
 		fmt.Println("Error writing to file")
-		return err
+		return "", err
 	}
 	fmt.Println(l, "bytes written successfully")
 	err = f.Close()
 
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return filename, nil
 
 }
 
 func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*OffLedgerResponse, error) {
 	dirName := "tmp"
 	createDirectory(dirName)
-	err := createFile(dirName, arrowheadCert, arrowheadCertString)
+	certPath, err := createFile(dirName, arrowheadCert, arrowheadCertString)
 	if err != nil {
 		return nil, err
 	}
 
-	err = createFile(dirName, arrowheadKey, arrowheadKeyString)
+	keyPath, err := createFile(dirName, arrowheadKey, arrowheadKeyString)
 	if err != nil {
 		return nil, err
 	}
 
-	err = createFile(dirName, arrowheadTruststore, arrowheadTruststoreString)
+	trustsorePath, err := createFile(dirName, arrowheadTruststore, arrowheadTruststoreString)
 	if err != nil {
 		return nil, err
 	}
@@ -498,7 +498,7 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*
 	orchBody.RequestedService.InterfaceRequirements = []string{"HTTP-SECURE-JSON"}
 	orchBody.RequestedService.ServiceDefinitionRequirement = "assign-worker"
 	orchBody.RequesterSystem = orchSystem
-	orchResponseJSON := arrowheadfunctions.Orchestration(orchBody, serviceRegistryIP, serviceRegistryPort, arrowheadCert, arrowheadKey, arrowheadTruststore)
+	orchResponseJSON := arrowheadfunctions.Orchestration(orchBody, serviceRegistryIP, serviceRegistryPort, certPath, keyPath, trustsorePath)
 	var orchResponse arrowheadfunctions.OrchResponse
 	json.Unmarshal(orchResponseJSON, &orchResponse)
 	fmt.Println("orchResponse: ", orchResponse)
@@ -512,7 +512,7 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*
 		log.Fatal(err)
 	}
 
-	client := arrowheadfunctions.GetClient("certificates/usercert.pem", "certificates/userkey.pem", "certificates/truststore.pem")
+	client := arrowheadfunctions.GetClient(certPath, keyPath, trustsorePath)
 	serviceResp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Error making HTTP request using client. ", err)
