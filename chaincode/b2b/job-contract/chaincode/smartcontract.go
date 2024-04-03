@@ -18,7 +18,7 @@ import (
 const (
 	arrowheadcertsPath  = "../certs"
 	arrowheadKey        = arrowheadcertsPath + "/technician-key.pem"
-	arrowheadCert       = arrowheadcertsPath + "technician-cert.pem"
+	arrowheadCert       = arrowheadcertsPath + "/technician-cert.pem"
 	arrowheadTruststore = arrowheadcertsPath + "/truststore.pem"
 )
 
@@ -433,8 +433,8 @@ func (s *SmartContract) JobExistsOnLedger(ctx contractapi.TransactionContextInte
 }
 
 func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*OffLedgerResponse, error) {
-	serviceRegistryIP := "35.228.60.153"
-	serviceRegistryPort := 8443
+	serviceRegistryIP := "arrowhead-orchestrator"
+	serviceRegistryPort := 8441
 	// TODO: check jespers system if the job exists or not and what type of job it is
 	var orchBody arrowheadfunctions.Orchestrate
 	var orchSystem arrowheadfunctions.System

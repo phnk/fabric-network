@@ -37,9 +37,9 @@ const (
 	tlsKeyPath          = cryptoPath + "/peers/peer0.org1.example.com/tls/server.key"
 	peerEndpoint        = "localhost:7051"
 	gatewayPeer         = "peer0.org1.example.com"
-	arrowheadcertsPath  = "../../chaincode/b2b/certs"
+	arrowheadcertsPath  = "./certs"
 	arrowheadKey        = arrowheadcertsPath + "/technician-key.pem"
-	arrowheadCert       = arrowheadcertsPath + "technician-cert.pem"
+	arrowheadCert       = arrowheadcertsPath + "/technician-cert.pem"
 	arrowheadTruststore = arrowheadcertsPath + "/truststore.pem"
 )
 
@@ -67,7 +67,6 @@ type GeneralContract struct {
 
 type TakeJobParams struct {
 	JobID   string `json:"JobID"`
-	JobType string `json:"JobType"`
 }
 
 type JobDoneParams struct {
@@ -79,7 +78,7 @@ var technichianID = "Org1MSP"
 //var jobID = "9"
 
 func main() {
-	serviceRegistryIP := "35.228.60.153"
+	serviceRegistryIP := "arrowhead-serviceregistry"
 	serviceRegistryPort := 8443
 	var rsrDTO arrowheadfunctions.System
 	rsrDTO.Address = "35.228.161.184"
@@ -366,14 +365,14 @@ func CreateJobHandler(c *gin.Context) {
 }
 
 // Submit a transaction to query ledger state.
-func takeJob(contract *client.Contract, jobID string, jobType string) {
-	fmt.Println("\n--> Submit Transaction: Update, function updates a key value pair on the ledger \n")
+func takeJob(contract *client.Contract, jobID string) {
+	fmt.Println("\n--> Submit Transaction: TakeJob, function updates a key value pair on the ledger \n")
 
 	fmt.Println("jobID: ", jobID)
 	fmt.Println("jobType: ", jobType)
 
 	//Remember to remove jobtype when integrated with jespers system
-	submitResult, err := contract.SubmitTransaction("TakeJob", jobID, technichianID, jobType)
+	submitResult, err := contract.SubmitTransaction("TakeJob", jobID, technichianID)
 	if err != nil {
 		switch err := err.(type) {
 		case *client.EndorseError:
@@ -461,7 +460,7 @@ func TakeJobHandler(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	takeJob(contract, params.JobID, params.JobType)
+	takeJob(contract, params.JobID)
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "Job added to your general contract."})
 }
 

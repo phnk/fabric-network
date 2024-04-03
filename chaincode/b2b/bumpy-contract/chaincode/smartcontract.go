@@ -14,7 +14,7 @@ import (
 const (
 	arrowheadcertsPath  = "../certs"
 	arrowheadKey        = arrowheadcertsPath + "/technician-key.pem"
-	arrowheadCert       = arrowheadcertsPath + "technician-cert.pem"
+	arrowheadCert       = arrowheadcertsPath + "/technician-cert.pem"
 	arrowheadTruststore = arrowheadcertsPath + "/truststore.pem"
 )
 
@@ -112,8 +112,8 @@ func (s *SmartContract) JobExistsOnLedger(ctx contractapi.TransactionContextInte
 }
 
 func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (bool, error) {
-	orchIP := "35.228.60.153"
-	orchPort := 8443
+	orchIP := "arrowhead-orchestrator"
+	orchPort := 8441
 	var requestBody arrowheadfunctions.Orchestrate
 	requestBody.OrchestrationFlags.EnableInterCloud = false
 	requestBody.OrchestrationFlags.OverrideStore = false
