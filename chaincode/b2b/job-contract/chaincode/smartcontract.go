@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 	"time"
 
@@ -438,7 +439,12 @@ func (s *SmartContract) JobExistsOnLedger(ctx contractapi.TransactionContextInte
 	return false, nil
 }
 
-func createFile(filename string, content string) error {
+func createDirectory(dirName string) {
+	os.Mkdir(dirName, 0777)
+}
+
+func createFile(dirName, filename string, content string) error {
+	filename = path.Join(dirName, filename)
 	f, err := os.Create(filename)
 	if err != nil {
 		fmt.Println("Error creating file")
@@ -460,17 +466,19 @@ func createFile(filename string, content string) error {
 }
 
 func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*OffLedgerResponse, error) {
-	err := createFile(arrowheadCert, arrowheadCertString)
+	dirName := "tmp"
+	createDirectory(dirName)
+	err := createFile(dirName, arrowheadCert, arrowheadCertString)
 	if err != nil {
 		return nil, err
 	}
 
-	err = createFile(arrowheadKey, arrowheadKeyString)
+	err = createFile(dirName, arrowheadKey, arrowheadKeyString)
 	if err != nil {
 		return nil, err
 	}
 
-	err = createFile(arrowheadTruststore, arrowheadTruststoreString)
+	err = createFile(dirName, arrowheadTruststore, arrowheadTruststoreString)
 	if err != nil {
 		return nil, err
 	}
