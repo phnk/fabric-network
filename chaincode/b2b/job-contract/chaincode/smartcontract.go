@@ -482,6 +482,7 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("jobID: ", jobID)
 
 	serviceRegistryIP := "arrowhead-orchestrator"
 	fmt.Println("In JobExistsOffLedger")
