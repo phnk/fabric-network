@@ -120,6 +120,7 @@ func (s *SmartContract) CreateGeneralContract(ctx contractapi.TransactionContext
 
 // Remember to remove jobtype when integrated with jespers system
 func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, jobID string, technichianID string) error {
+	fmt.Println("In TakeJob")
 	exists, err := s.GeneralContractExists(ctx, technichianID)
 	if err != nil {
 		return err
@@ -155,11 +156,13 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 
 	serviceLevelJson, err := io.ReadAll(serviceLevelResponse.Body)
 	if err != nil {
+		fmt.Println("Eror reading servicelevel")
 		return err
 	}
 
 	var servicelevel ServiceLevelResponse
 	err = json.Unmarshal(serviceLevelJson, &servicelevel)
+	fmt.Println("serviceLevel: ", servicelevel)
 	if err != nil {
 		return err
 	}
@@ -434,6 +437,7 @@ func (s *SmartContract) JobExistsOnLedger(ctx contractapi.TransactionContextInte
 
 func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*OffLedgerResponse, error) {
 	serviceRegistryIP := "arrowhead-orchestrator"
+	fmt.Println("In JobExistsOffLedger")
 	serviceRegistryPort := 8441
 	// TODO: check jespers system if the job exists or not and what type of job it is
 	var orchBody arrowheadfunctions.Orchestrate
@@ -450,11 +454,14 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*
 	orchResponseJSON := arrowheadfunctions.Orchestration(orchBody, serviceRegistryIP, serviceRegistryPort, arrowheadCert, arrowheadKey, arrowheadTruststore)
 	var orchResponse arrowheadfunctions.OrchResponse
 	json.Unmarshal(orchResponseJSON, &orchResponse)
+	fmt.Println("orchResponse: ", orchResponse)
 	choosenSystem := orchResponse.Response[0]
+	fmt.Println("Choosen system: ", choosenSystem)
 	fmt.Println("response from neginfo: ", choosenSystem)
 
 	req, err := http.NewRequest("POST", "https://"+choosenSystem.Provider.Address+":"+strconv.Itoa(choosenSystem.Provider.Port)+choosenSystem.ServiceUri, nil)
 	if err != nil {
+		fmt.Println("fatal error when creating request")
 		log.Fatal(err)
 	}
 

@@ -119,6 +119,7 @@ func (s *SmartContract) JobExistsOnLedger(ctx contractapi.TransactionContextInte
 }
 
 func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (bool, error) {
+	fmt.Println("In jobExistsOffLedger")
 	orchIP := "arrowhead-orchestrator"
 	orchPort := 8441
 	var requestBody arrowheadfunctions.Orchestrate
@@ -136,6 +137,8 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (b
 	jsonOrchResponse := arrowheadfunctions.Orchestration(requestBody, orchIP, orchPort, arrowheadCert, arrowheadKey, arrowheadTruststore)
 	json.Unmarshal(jsonOrchResponse, &orchResponse)
 	chosenResponse := orchResponse.Response[0]
+
+	fmt.Println("Chosen response: ", chosenResponse)
 	fmt.Println("response from neginfo: ", chosenResponse)
 
 	req, err := http.NewRequest("POST", "https://"+chosenResponse.Provider.Address+":"+strconv.Itoa(chosenResponse.Provider.Port)+chosenResponse.ServiceUri, nil)
