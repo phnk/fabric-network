@@ -518,11 +518,13 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*
 	if err != nil {
 		fmt.Println("Error making HTTP request using client. ", err)
 	}
+
 	body, err := io.ReadAll(serviceResp.Body)
+
 	if err != nil {
 		fmt.Println("Error reading response body. ", err)
 	}
-	fmt.Println("body: ", body)
+	fmt.Println("body: ", string(body))
 	var assignWorkResponse OffLedgerResponse
 	err = json.Unmarshal(body, &assignWorkResponse)
 	if err != nil {
