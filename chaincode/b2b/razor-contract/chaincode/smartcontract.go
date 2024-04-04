@@ -80,7 +80,7 @@ func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, tech
 		fmt.Println("Job does not exist")
 		return nil, fmt.Errorf("Job %s does not exist off ledger", jobID)
 	}
-	timeDeadline, err := time.Parse("2024-04-04 11:10:04.504 +0000 UTC", deadline)
+	timeDeadline, err := time.Parse("2006-01-02 15:04:05", deadline)
 	if err != nil {
 		fmt.Println("Error parsing deadline: ", err)
 		return nil, err
