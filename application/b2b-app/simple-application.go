@@ -67,7 +67,7 @@ type GeneralContract struct {
 }
 
 type TakeJobParams struct {
-	JobID string `json:"JobID"`
+	JobID string `json:"workId"`
 }
 
 type JobDoneParams struct {
