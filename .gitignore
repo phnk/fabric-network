@@ -24,6 +24,9 @@ package-lock.json
 #Certs
 certs/
 
+#env
+.env
+
 # installed Fabric binaries etc.
 bin/
 builders/

@@ -16,12 +16,14 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"github.com/hyperledger/fabric-gateway/pkg/identity"
 	"github.com/hyperledger/fabric-protos-go-apiv2/gateway"
+	"github.com/joho/godotenv"
 	"github.com/nalle631/arrowheadfunctions"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -66,7 +68,7 @@ type GeneralContract struct {
 }
 
 type TakeJobParams struct {
-	JobID   string `json:"JobID"`
+	JobID string `json:"JobID"`
 }
 
 type JobDoneParams struct {
@@ -78,21 +80,28 @@ var technichianID = "Org1MSP"
 //var jobID = "9"
 
 func main() {
-	serviceRegistryIP := "arrowhead-serviceregistry"
-	serviceRegistryPort := 8443
+	godotenv.Load()
+	serviceRegistryIP := os.Getenv("SERVICEREGISTRYADDRESS")
+	serviceRegistryPort, err := strconv.Atoi(os.Getenv("SERVICEREGISTRYPORT"))
+	if err != nil {
+		panic(err)
+	}
 	var rsrDTO arrowheadfunctions.System
-	rsrDTO.Address = "35.228.161.184"
+	rsrDTO.Address = os.Getenv("SYSTEMADDRESS")
 	rsrDTO.AuthenticationInfo = ""
-	rsrDTO.Port = 5000
-	rsrDTO.SystemName = "technician"
+	rsrDTO.Port, err = strconv.Atoi(os.Getenv("SYSTEMPORT"))
+	if err != nil {
+		panic(err)
+	}
+	rsrDTO.SystemName = os.Getenv("SYSTEMNAME")
 	arrowheadfunctions.RegisterSystem(rsrDTO, serviceRegistryIP, serviceRegistryPort, arrowheadCert, arrowheadKey, arrowheadTruststore)
 	var service arrowheadfunctions.Service
-	service.Interfaces = []string{"HTTP-INSECURE-JSON"}
-	service.Metadata.Method = "POST"
+	service.Interfaces = []string{os.Getenv("SERVICEINTERFACE")}
+	service.Metadata.Method = os.Getenv("SERVICEMETHOD")
 	service.ProviderSystem = rsrDTO
-	service.Secure = "CERTIFICATE"
-	service.ServiceDefinition = "assign-worker"
-	service.ServiceUri = "/job/take"
+	service.Secure = os.Getenv("SERVICESECURE")
+	service.ServiceDefinition = os.Getenv("SERVICEDEFINITION")
+	service.ServiceUri = os.Getenv("SERVUCEURI")
 
 	arrowheadfunctions.PublishService(service, serviceRegistryIP, serviceRegistryPort, arrowheadCert, arrowheadKey, arrowheadTruststore)
 	router := CreateRouter()
@@ -369,7 +378,6 @@ func takeJob(contract *client.Contract, jobID string) {
 	fmt.Println("\n--> Submit Transaction: TakeJob, function updates a key value pair on the ledger \n")
 
 	fmt.Println("jobID: ", jobID)
-	
 
 	//Remember to remove jobtype when integrated with jespers system
 	submitResult, err := contract.SubmitTransaction("TakeJob", jobID, technichianID)

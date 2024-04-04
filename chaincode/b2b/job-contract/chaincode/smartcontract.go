@@ -157,7 +157,7 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 		return fmt.Errorf("Job %s does not exist in external system", jobID)
 	}
 
-	serviceLevelResponse, err := http.Get("http://35.228.161.184:5001/sla/" + jobInfo.ProductID + "/servicelevel")
+	serviceLevelResponse, err := http.Get("http://35.228.75.182:5001/sla/" + jobInfo.ProductID + "/servicelevel")
 	if err != nil {
 		return err
 	}
@@ -494,7 +494,7 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*
 	// TODO: check jespers system if the job exists or not and what type of job it is
 	var orchBody arrowheadfunctions.Orchestrate
 	var orchSystem arrowheadfunctions.System
-	orchSystem.Address = "35.228.161.184"
+	orchSystem.Address = "35.228.75.182"
 	orchSystem.AuthenticationInfo = ""
 	orchSystem.Port = 5000
 	orchSystem.SystemName = "technician"
