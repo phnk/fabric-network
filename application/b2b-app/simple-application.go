@@ -56,8 +56,7 @@ type Job struct {
 	Deadline      time.Time `json:"Deadline,omitempty"`
 	ID            string    `json:"ID"`
 	Mower         string    `json:"Mower"`
-	Area          string    `json:"Area"`
-	Location      string    `json:"Location"`
+	Address       string    `json:"Adress"`
 }
 
 type GeneralContract struct {
