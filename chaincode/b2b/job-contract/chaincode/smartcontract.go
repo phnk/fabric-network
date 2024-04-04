@@ -168,13 +168,9 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 		return err
 	}
 
-	var servicelevel ServiceLevelResponse
-	err = json.Unmarshal(serviceLevelJson, &servicelevel)
-	fmt.Println("serviceLevel: ", servicelevel)
-	if err != nil {
-		return err
-	}
-	switch servicelevel.ServiceLevel {
+	serviceLevel := string(serviceLevelJson)
+	fmt.Println("serviceLevel: ", serviceLevel)
+	switch serviceLevel {
 	case "standard":
 		jobInfo.StartTime = jobInfo.StartTime.AddDate(0, 0, 7)
 
