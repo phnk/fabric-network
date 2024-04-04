@@ -172,7 +172,9 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 	fmt.Println("serviceLevel: ", serviceLevel)
 	switch serviceLevel {
 	case "standard":
+		fmt.Println("In standard, Starttime: ", jobInfo.StartTime)
 		jobInfo.StartTime = jobInfo.StartTime.AddDate(0, 0, 7)
+		fmt.Println("Starttime after i added days: ", jobInfo.StartTime)
 
 	case "gold":
 		jobInfo.StartTime = jobInfo.StartTime.AddDate(0, 0, 5)
