@@ -181,6 +181,10 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 
 	case "platinum":
 		jobInfo.StartTime = jobInfo.StartTime.AddDate(0, 0, 3)
+
+	default:
+		fmt.Println("In default")
+
 	}
 
 	deadline := jobInfo.StartTime.Format("2006-01-02 15:04:05")

@@ -1000,8 +1000,7 @@ func GetServiceLevelHandler(c *gin.Context) {
 		return
 	}
 
-	c.IndentedJSON(http.StatusOK, sla.ServiceLevel)
-
+	c.Data(200, "text/plain; charset=utf8", []byte(sla.ServiceLevel))
 }
 
 // Evaluate a transaction by key to query ledger state.
