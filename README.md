@@ -28,8 +28,15 @@ More information about the Customer-to-Business chaincodes can be found on the p
 ## Application
 Applications are used outside of the Fabric network with the main functionality of interacting with the chaincode. Each organization partisipating in the Fabric network are required to implement their own application. This means that each service-provider owns their own application wich uses their own crypographic identification and certificates. In this thesis two applications has been created, one for the customer organisation and one for a service provider organisation. These can be referenced to while creating new applications for new organisations, however they should only be used for testing since they use simple cryptographic identification and certificates.
 
+### B2B-Application
+The B2B-app is a REST API that are used by a service-provider to interact with their General Contract. The B2B-app in this thesis is only created for one service-provider meaning that if a service-provider wants to join the Fabric Network, they have to create their own application using the organisations cryptographic credentials and certificates. The endpoints for the B2B app can be seen in the image below.
+
 ### C2B-Application
-The C2B-App is a REST API that handles the customers interactions with the fabric network. For example when a customer wants to buy a service it should send their request to the 
+The C2B-App is a REST API that handles the customers interactions with the fabric network. The endpoints that the customers can be used to interact with the Fabric Network can be seen in the image below.
+<p align="center">
+  <img src="img/c2bEndpoints.png" />
+</p>
+For example when a customer wants to buy a service it should send their request to the :customer_id/sla endpoint which in turn will invoke the customer contract chaincode mentioned in the chaincode section. Since there are only one customer organisation there is only one application required for all customers. This means however that the identification of a customer is done with a customers id contrary to the identification of service-providers mentioned above.
 
 
 
