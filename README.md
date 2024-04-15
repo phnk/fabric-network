@@ -15,10 +15,22 @@ A service chaincode represent a service that are available for a service-provide
 <p align="center">
   <img src="img/service_structure.png" />
 </p>
-If a new type of service is availabe a corresponding chaincode is created for that service, thus new services can be added on demand in the Fabric network. More information about the Business-to-Business chaincodes can be found on the projects github in the chaincode folder. There all the functionalities of the chaincodes can be studied.
+If a new type of service is availabe a corresponding chaincode is created for that service, thus new services can be added on demand in the Fabric network. More information about the Business-to-Business chaincodes can be found on the projects github in the chaincode folder. There, all the functionalities of the chaincodes can be studied.
 
 ### Customer-to-Business
-Customer-to-Business chaincode are created for the interaction between service-buyers and the service-owner. Simillar to the Business-to-Business chaincode, there exists two levels of chaincode. The customer chaincode and the SLA chaincode. The customer chaincode are responsible for managing the customer contract. A customer contract contains the customer id and all their active SLA:s. When a custoemr buys a service the customer contract creates a new SLA for the service and adds it to the contract. The process of creating a new SLA can be seen in the sequence diagram below.
+Customer-to-Business chaincode are created for the interaction between service-buyers and the service-owner. Simillar to the Business-to-Business chaincode, there exists two levels of chaincode. The customer chaincode and the SLA chaincode. The customer chaincode are responsible for managing the customer contract. A customer contract contains the customer id and all their active SLA:s. When a customer buys a service the customer contract creates a new SLA for the service and adds it to the contract. The process of registering a customer and buying a service can be seen in the sequence diagram below.
+<p align="center">
+  <img src="img/BuySequence.png" />
+</p>
+
+More information about the Customer-to-Business chaincodes can be found on the projects github in the chaincode folder. There, all the functionalities of the chaincodes can be studied.
+
+## Application
+Applications are used outside of the Fabric network with the main functionality of interacting with the chaincode. Each organization partisipating in the Fabric network are required to implement their own application. This means that each service-provider owns their own application wich uses their own crypographic identification and certificates. In this thesis two applications has been created, one for the customer organisation and one for a service provider organisation. These can be referenced to while creating new applications for new organisations, however they should only be used for testing since they use simple cryptographic identification and certificates.
+
+### C2B-Application
+The C2B-App is a REST API that handles the customers interactions with the fabric network. For example when a customer wants to buy a service it should send their request to the 
+
 
 
 
