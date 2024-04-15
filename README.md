@@ -16,6 +16,9 @@ A service chaincode represent a service that are available for a service-provide
   <img src="img/service_structure.png" />
 </p>
 If a new type of service is availabe a corresponding chaincode is created for that service, thus new services can be added on demand in the Fabric network. A sequence diagram of how a General Contract is created and how a job is taken can be seen in the image below:
+<p align="center">
+  <img src="img/TakeSequence.png" />
+</p>
 
 ### Customer-to-Business
 Customer-to-Business chaincode are created for the interaction between service-buyers and the service-owner. Simillar to the Business-to-Business chaincode, there exists two levels of chaincode. The customer chaincode and the SLA chaincode. The customer chaincode are responsible for managing the customer contract. A customer contract contains the customer id and all their active SLA:s. When a customer buys a service the customer contract creates a new SLA for the service and adds it to the contract. The process of registering a customer and buying a service can be seen in the sequence diagram below.
@@ -34,7 +37,7 @@ The B2B-app is a REST API that are used by a service-provider to interact with t
   <img src="img/b2bEndpoints.png" />
 </p>
 
-For example if a service-provider wants to take on a job/service they use the /job/take endpoint which will tell the General Contract to create a new service should the service not already be taken by another service-provider.
+For example if a service-provider wants to take on a job/service they use the /job/take endpoint which will tell the General Contract to create a new service should the service not already be taken by another service-provider. The identification for each service-provider is their MSPID which corresponds to their organisations MSP and is handled within the chaincode.
 
 
 
