@@ -29,10 +29,14 @@ type SLA struct {
 func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, serviceLevel string, targetgrasslength float32, maxgrasslength float32, mingrasslength float32) (*SLA, error) {
 	newUUID, err := exec.Command("uuidgen").Output()
 	if err != nil {
+		fmt.Println("Error creating UUID")
 		return nil, err
 	}
+	fmt.Println("UUID generated: ", newUUID)
+	fmt.Println("UUID string: ", string(newUUID))
 	exists, err := s.SLAExists(ctx, string(newUUID))
 	if err != nil {
+		fmt.Println("sla aready exists")
 		return nil, err
 	}
 	if exists {
@@ -61,6 +65,7 @@ func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, s
 	fmt.Println("SLA after evaluation: ", newSLA)
 	slaJSON, err := json.Marshal(newSLA)
 	if err != nil {
+		fmt.Println("Error marshalling SLA: ")
 		return nil, err
 	}
 	ctx.GetStub().PutState(string(newUUID), slaJSON)

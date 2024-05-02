@@ -85,6 +85,7 @@ func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, c
 		fmt.Println("Failed to unmarshal, ", err)
 		return nil, err
 	}
+	fmt.Println("Created SLA: ", createdSLA)
 	customer.SLAs = append(customer.SLAs, createdSLA)
 	customerJSON, err := json.Marshal(customer)
 	if err != nil {
