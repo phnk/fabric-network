@@ -3,6 +3,7 @@ package mower
 import (
 	"encoding/json"
 	"fmt"
+	"os/exec"
 
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
@@ -25,18 +26,22 @@ type SLA struct {
 }
 
 // CreateAsset issues a new asset to the world state with given details.
-func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, id string, serviceLevel string, targetgrasslength float32, maxgrasslength float32, mingrasslength float32) (*SLA, error) {
-	exists, err := s.SLAExists(ctx, id)
+func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, serviceLevel string, targetgrasslength float32, maxgrasslength float32, mingrasslength float32) (*SLA, error) {
+	newUUID, err := exec.Command("uuidgen").Output()
+	if err != nil {
+		return nil, err
+	}
+	exists, err := s.SLAExists(ctx, string(newUUID))
 	if err != nil {
 		return nil, err
 	}
 	if exists {
-		return nil, fmt.Errorf("the SLA %s already exists", id)
+		return nil, fmt.Errorf("the SLA %s already exists", string(newUUID))
 	}
 
 	newSLA := SLA{
 		AppraisedValue:    0,
-		ID:                id,
+		ID:                string(newUUID),
 		ServiceLevel:      serviceLevel,
 		TargetGrassLength: targetgrasslength,
 		MaxGrassLength:    maxgrasslength,
@@ -58,7 +63,7 @@ func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, i
 	if err != nil {
 		return nil, err
 	}
-	ctx.GetStub().PutState(id, slaJSON)
+	ctx.GetStub().PutState(string(newUUID), slaJSON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to put to world state. %v", err)
 	}

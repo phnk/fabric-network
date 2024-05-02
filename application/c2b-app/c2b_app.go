@@ -42,8 +42,7 @@ type CustomerParams struct {
 	CustomerID string `json:"CustomerID"`
 }
 
-type CreateMowerParams struct {
-	MowerID           string  `json:"MowerID"`
+type CreateSLAParams struct {
 	ServiceLevel      string  `json:"ServiceLevel"`
 	TargetGrassLength float32 `json:"TargetGrassLength"`
 	MaxGrassLength    float32 `json:"MaxGrassLength"`
@@ -66,9 +65,9 @@ type UpdateGrassLengthIntervalParams struct {
 	MinGrassLength float32 `json:"MinGrassLength"`
 }
 
-type RemoveMowerSLAParams struct {
+type RemoveSLAParams struct {
 	CustomerID string `json:"CustomerID"`
-	MowerID    string `json:"MowerID"`
+	SlaID      string `json:"slaID"`
 }
 
 type Customer struct {
@@ -183,12 +182,12 @@ func CreateRouter() *gin.Engine {
 	r.GET("/sla/:id", ReadSLAHandler)
 	r.GET("/sla/:id/servicelevel", GetServiceLevelHandler)
 	r.POST("/contract", CreateCustomerHandler)
-	r.POST(":customer_id/sla", CreateMowerHandler)
+	r.POST(":customer_id/sla", CreateSLAHandler)
 	r.PUT("/sla/:id/grasslength", updateTargetGrassLengthHandler)
 	r.PUT("/sla/:id/intervall", updateGrassLengthIntervalHandler)
 	r.PUT("sla/:id/servicelevel", updateServiceLevelHandler)
 	r.POST("/sla/evaluate", evaluateSLAHandler)
-	r.DELETE("/sla/:id", removeMowerSLAHandler)
+	r.DELETE("/sla/:id", removeSLAHandler)
 	return r
 }
 
@@ -283,13 +282,13 @@ func CreateCustomerHandler(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "Customer created successfully"})
 }
 
-func createMower(contract *client.Contract, customerID string, mowerID string, serviceLevel string, targetgrasslength float32, maxgrasslength float32, mingrasslength float32) {
-	fmt.Println("\n--> Submit Transaction: createMower")
+func createSLA(contract *client.Contract, customerID string, serviceLevel string, targetgrasslength float32, maxgrasslength float32, mingrasslength float32) (*SLA, error) {
+	fmt.Println("\n--> Submit Transaction: createSLA")
 	targetgrasslength_string := fmt.Sprintf("%f", targetgrasslength)
 	maxgrasslength_string := fmt.Sprintf("%f", maxgrasslength)
 	mingrasslength_string := fmt.Sprintf("%f", mingrasslength)
 
-	_, err := contract.SubmitTransaction("CreateMower", customerID, mowerID, serviceLevel, targetgrasslength_string, maxgrasslength_string, mingrasslength_string)
+	createResult, err := contract.SubmitTransaction("CreateSLA", customerID, serviceLevel, targetgrasslength_string, maxgrasslength_string, mingrasslength_string)
 
 	if err != nil {
 		switch err := err.(type) {
@@ -324,12 +323,16 @@ func createMower(contract *client.Contract, customerID string, mowerID string, s
 				}
 			}
 		}
+		return nil, err
 	}
 
-	fmt.Printf("*** Transaction committed successfully\n")
+	var sla SLA
+	json.Unmarshal(createResult, &sla)
+	fmt.Println("Result: ", string(createResult[:]))
+	return &sla, nil
 }
 
-func CreateMowerHandler(c *gin.Context) {
+func CreateSLAHandler(c *gin.Context) {
 	clientConnection := newGrpcConnection()
 	defer clientConnection.Close()
 
@@ -369,20 +372,25 @@ func CreateMowerHandler(c *gin.Context) {
 	network := gw.GetNetwork(channelName)
 
 	contract := network.GetContract(chaincodeName)
-	var mowerParams CreateMowerParams
+	var slaParams CreateSLAParams
 	customerID := c.Param("customer_id")
-	if err := c.BindJSON(&mowerParams); err != nil {
+	if err := c.BindJSON(&slaParams); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	createMower(contract, customerID, mowerParams.MowerID, mowerParams.ServiceLevel, mowerParams.TargetGrassLength, mowerParams.MaxGrassLength, mowerParams.MinGrassLength)
-	c.IndentedJSON(http.StatusOK, gin.H{"message": "Mower craeted successfully"})
+	sla, err := createSLA(contract, customerID, slaParams.ServiceLevel, slaParams.TargetGrassLength, slaParams.MaxGrassLength, slaParams.MinGrassLength)
+
+	if err != nil {
+		c.JSON(501, gin.H{"error": err.Error()})
+		return
+	}
+	c.IndentedJSON(http.StatusOK, sla.ID)
 }
 
-func updateServiceLevel(contract *client.Contract, customerID string, mowerID string, serviceLevel string) error {
+func updateServiceLevel(contract *client.Contract, customerID string, slaID string, serviceLevel string) error {
 	fmt.Println("\n--> Submit Transaction: updateServiceLevel")
 
-	_, err := contract.SubmitTransaction("UpdateServiceLevel", customerID, mowerID, serviceLevel)
+	_, err := contract.SubmitTransaction("UpdateServiceLevel", customerID, slaID, serviceLevel)
 
 	if err != nil {
 		switch err := err.(type) {
@@ -477,13 +485,13 @@ func updateServiceLevelHandler(c *gin.Context) {
 }
 
 // Submit a transaction to query ledger state.
-func updateTargetGrassLength(contract *client.Contract, customerID string, mowerID string, targetgrasslength float32) {
+func updateTargetGrassLength(contract *client.Contract, customerID string, slaID string, targetgrasslength float32) {
 	fmt.Println("\n--> Submit Transaction: updateTargetGrassLength \n")
 	fmt.Println(targetgrasslength)
 	targetgrasslength_string := fmt.Sprintf("%f", targetgrasslength)
 	fmt.Println(targetgrasslength_string)
 
-	submitResult, err := contract.SubmitTransaction("UpdateTargetGrassLength", customerID, mowerID, targetgrasslength_string)
+	submitResult, err := contract.SubmitTransaction("UpdateTargetGrassLength", customerID, slaID, targetgrasslength_string)
 
 	if err != nil {
 		switch err := err.(type) {
@@ -573,12 +581,12 @@ func updateTargetGrassLengthHandler(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "TargetGrassLength updated successfully"})
 }
 
-func updateGrassLengthInterval(contract *client.Contract, customerID string, mowerID string, maxgrasslength float32, mingrasslength float32) {
+func updateGrassLengthInterval(contract *client.Contract, customerID string, slaID string, maxgrasslength float32, mingrasslength float32) {
 	fmt.Println("\n--> Submit Transaction: updateGrassLengthInterval \n")
 
 	maxgrasslength_string := fmt.Sprintf("%f", maxgrasslength)
 	mingrasslength_string := fmt.Sprintf("%f", mingrasslength)
-	submitResult, err := contract.SubmitTransaction("UpdateGrassLengthInterval", customerID, mowerID, maxgrasslength_string, mingrasslength_string)
+	submitResult, err := contract.SubmitTransaction("UpdateGrassLengthInterval", customerID, slaID, maxgrasslength_string, mingrasslength_string)
 	if err != nil {
 		switch err := err.(type) {
 		case *client.EndorseError:
@@ -667,10 +675,10 @@ func updateGrassLengthIntervalHandler(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "GrassLengthInterval updated successfully"})
 }
 
-func removeMowerSLA(contract *client.Contract, customerID string, mowerID string) {
+func removeSLA(contract *client.Contract, customerID string, slaID string) {
 	fmt.Println("\n--> Submit Transaction: updateGrassLengthInterval \n")
 
-	submitResult, err := contract.SubmitTransaction("RemoveMowerSLA", customerID, mowerID)
+	submitResult, err := contract.SubmitTransaction("RemoveSLA", customerID, slaID)
 	if err != nil {
 		switch err := err.(type) {
 		case *client.EndorseError:
@@ -709,7 +717,7 @@ func removeMowerSLA(contract *client.Contract, customerID string, mowerID string
 	fmt.Println("Result:", submitResult)
 }
 
-func removeMowerSLAHandler(c *gin.Context) {
+func removeSLAHandler(c *gin.Context) {
 	clientConnection := newGrpcConnection()
 	defer clientConnection.Close()
 
@@ -749,13 +757,13 @@ func removeMowerSLAHandler(c *gin.Context) {
 	network := gw.GetNetwork(channelName)
 
 	contract := network.GetContract(chaincodeName)
-	var removeMowerSLAParams RemoveMowerSLAParams
-	if err := c.BindJSON(&removeMowerSLAParams); err != nil {
+	var removeSLAParams RemoveSLAParams
+	if err := c.BindJSON(&removeSLAParams); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	removeMowerSLA(contract, removeMowerSLAParams.CustomerID, removeMowerSLAParams.MowerID)
-	c.IndentedJSON(http.StatusOK, gin.H{"message": "Mower SLA removed successfully"})
+	removeSLA(contract, removeSLAParams.CustomerID, removeSLAParams.SlaID)
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "SLA removed successfully"})
 }
 
 func evaluateSLA(contract *client.Contract, sla SlaParams) (int, error) {
@@ -864,10 +872,10 @@ func evaluateSLAHandler(c *gin.Context) {
 
 }
 
-func readSLA(contract *client.Contract, mowerID string) (*SLA, error) {
+func readSLA(contract *client.Contract, slaID string) (*SLA, error) {
 	fmt.Printf("\n--> Evaluate Transaction: ReadSLA, function returns key value pair\n")
 
-	evaluateResult, err := contract.EvaluateTransaction("ReadSLA", mowerID)
+	evaluateResult, err := contract.EvaluateTransaction("ReadSLA", slaID)
 	if err != nil {
 		switch err := err.(type) {
 		case *client.EndorseError:
@@ -949,9 +957,9 @@ func ReadSLAHandler(c *gin.Context) {
 
 	network := gw.GetNetwork(channelName)
 
-	mowerID := c.Param("id")
+	slaID := c.Param("id")
 	contract := network.GetContract(chaincodeName)
-	sla, err := readSLA(contract, mowerID)
+	sla, err := readSLA(contract, slaID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -999,9 +1007,9 @@ func GetServiceLevelHandler(c *gin.Context) {
 
 	network := gw.GetNetwork(channelName)
 
-	mowerID := c.Param("id")
+	slaID := c.Param("id")
 	contract := network.GetContract(chaincodeName)
-	sla, err := readSLA(contract, mowerID)
+	sla, err := readSLA(contract, slaID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
