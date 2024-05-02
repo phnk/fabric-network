@@ -13,10 +13,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -843,8 +845,12 @@ func evaluateSLAHandler(c *gin.Context) {
 
 	network := gw.GetNetwork(channelName)
 	contract := network.GetContract(chaincodeName)
-
-	fmt.Println("Non indented recieved: ", c.Request.Body)
+	buf := new(strings.Builder)
+	_, err = io.Copy(buf, c.Request.Body)
+	if err != nil {
+		fmt.Println("Error copying")
+	}
+	fmt.Println("Non indented recieved: ", buf.String())
 	var slaParams SlaParams
 	if err := c.BindJSON(&slaParams); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
