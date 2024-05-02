@@ -27,6 +27,7 @@ type SLA struct {
 
 // CreateAsset issues a new asset to the world state with given details.
 func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, serviceLevel string, targetgrasslength float32, maxgrasslength float32, mingrasslength float32) (*SLA, error) {
+	fmt.Println("In CreateSLA in mower contract")
 	newUUID, err := exec.Command("uuidgen").Output()
 	if err != nil {
 		fmt.Println("Error creating UUID")
