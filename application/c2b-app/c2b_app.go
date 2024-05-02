@@ -843,11 +843,14 @@ func evaluateSLAHandler(c *gin.Context) {
 
 	network := gw.GetNetwork(channelName)
 	contract := network.GetContract(chaincodeName)
+
+	fmt.Println("Non indented recieved: ", c.Request.Body)
 	var slaParams SlaParams
 	if err := c.BindJSON(&slaParams); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	fmt.Println("Json recieved: ", slaParams)
 	evaluatedValue, err := evaluateSLA(contract, slaParams)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
