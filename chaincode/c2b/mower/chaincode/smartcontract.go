@@ -3,8 +3,8 @@ package mower
 import (
 	"encoding/json"
 	"fmt"
-	"os/exec"
 
+	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
@@ -28,25 +28,23 @@ type SLA struct {
 // CreateAsset issues a new asset to the world state with given details.
 func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, serviceLevel string, targetgrasslength float32, maxgrasslength float32, mingrasslength float32) (*SLA, error) {
 	fmt.Println("In CreateSLA in mower contract")
-	newUUID, err := exec.Command("uuidgen").Output()
-	if err != nil {
-		fmt.Println("Error creating UUID")
-		return nil, err
-	}
+
+	newUUID := uuid.New()
+	newUUIDString := newUUID.String()
 	fmt.Println("UUID generated: ", newUUID)
-	fmt.Println("UUID string: ", string(newUUID))
-	exists, err := s.SLAExists(ctx, string(newUUID))
+	fmt.Println("UUID string: ", newUUIDString)
+	exists, err := s.SLAExists(ctx, newUUIDString)
 	if err != nil {
 		fmt.Println("sla aready exists")
 		return nil, err
 	}
 	if exists {
-		return nil, fmt.Errorf("the SLA %s already exists", string(newUUID))
+		return nil, fmt.Errorf("the SLA %s already exists", newUUIDString)
 	}
 
 	newSLA := SLA{
 		AppraisedValue:    0,
-		ID:                string(newUUID),
+		ID:                newUUIDString,
 		ServiceLevel:      serviceLevel,
 		TargetGrassLength: targetgrasslength,
 		MaxGrassLength:    maxgrasslength,
@@ -69,7 +67,7 @@ func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, s
 		fmt.Println("Error marshalling SLA: ")
 		return nil, err
 	}
-	ctx.GetStub().PutState(string(newUUID), slaJSON)
+	ctx.GetStub().PutState(newUUIDString, slaJSON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to put to world state. %v", err)
 	}
