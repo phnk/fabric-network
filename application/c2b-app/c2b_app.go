@@ -83,6 +83,14 @@ type SlaParams struct {
 	MinGrassLength    float32 `json:"MinGrassLength"`
 }
 
+type UpdateSlaParams struct {
+	ID                string  `json:"id"`
+	ServiceLevel      string  `json:"ServiceLevel"`
+	TargetGrassLength float32 `json:"TargetGrassLength"`
+	MaxGrassLength    float32 `json:"MaxGrassLength"`
+	MinGrassLength    float32 `json:"MinGrassLength"`
+}
+
 type SLA struct {
 	AppraisedValue int `json:"AppraisedValue,omitempty"`
 	SlaParams
@@ -184,6 +192,7 @@ func CreateRouter() *gin.Engine {
 	r.GET("/sla/:id/servicelevel", GetServiceLevelHandler)
 	r.POST("/contract", CreateCustomerHandler)
 	r.POST(":customer_id/sla", CreateSLAHandler)
+	r.PUT("/sla/:id/sla", updateSLAHandler)
 	r.PUT("/sla/:id/grasslength", updateTargetGrassLengthHandler)
 	r.PUT("/sla/:id/intervall", updateGrassLengthIntervalHandler)
 	r.PUT("sla/:id/servicelevel", updateServiceLevelHandler)
@@ -390,6 +399,64 @@ func CreateSLAHandler(c *gin.Context) {
 		return
 	}
 	c.IndentedJSON(http.StatusOK, sla.ID)
+}
+
+func updateSLAHandler(c *gin.Context) {
+	clientConnection := newGrpcConnection()
+	defer clientConnection.Close()
+
+	id := newIdentity()
+	sign := newSign()
+
+	// Create a Gateway connection for a specific client identity
+	gw, err := client.Connect(
+		id,
+		client.WithSign(sign),
+		client.WithClientConnection(clientConnection),
+		// Default timeouts for different gRPC calls
+		client.WithEvaluateTimeout(5*time.Second),
+		client.WithEndorseTimeout(15*time.Second),
+		client.WithSubmitTimeout(5*time.Second),
+		client.WithCommitStatusTimeout(1*time.Minute),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	defer gw.Close()
+
+	// Override default values for chaincode and channel name as they may differ in testing contexts.
+	chaincodeName := "customer"
+	if ccname := os.Getenv("CHAINCODE_NAME"); ccname != "" {
+		chaincodeName = ccname
+	}
+
+	// chaincodeName2 := "bumpy"
+
+	channelName := "customer"
+	if cname := os.Getenv("CHANNEL_NAME"); cname != "" {
+		channelName = cname
+	}
+
+	network := gw.GetNetwork(channelName)
+
+	contract := network.GetContract(chaincodeName)
+	var slaParams UpdateSlaParams
+	customerID := c.Param("customer_id")
+	if err := c.BindJSON(&slaParams); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	updateTargetGrassLength(contract, customerID, slaParams.ID, slaParams.TargetGrassLength)
+	updateGrassLengthInterval(contract, customerID, slaParams.ID, slaParams.MaxGrassLength, slaParams.MinGrassLength)
+	err = updateServiceLevel(contract, customerID, slaParams.ID, slaParams.ServiceLevel)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.IndentedJSON(http.StatusOK, gin.H{"status": "ok"})
+
 }
 
 func updateServiceLevel(contract *client.Contract, customerID string, slaID string, serviceLevel string) error {
