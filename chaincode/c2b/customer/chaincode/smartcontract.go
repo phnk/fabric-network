@@ -78,7 +78,7 @@ func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, c
 	mingrasslength_string := fmt.Sprintf("%f", mingrasslength)
 	fmt.Println("Mingrasslength: ", mingrasslength_string)
 
-	invokeArgs := [][]byte{[]byte("CreateSLA"), []byte(serviceLevel), []byte(targetgrasslength_string), []byte(maxgrasslength_string), []byte(mingrasslength_string)}
+	invokeArgs := [][]byte{[]byte("CreateSLA"), []byte(id), []byte(serviceLevel), []byte(targetgrasslength_string), []byte(maxgrasslength_string), []byte(mingrasslength_string)}
 	fmt.Println("Invoke args: ", invokeArgs)
 	response := ctx.GetStub().InvokeChaincode("mower", invokeArgs, ctx.GetStub().GetChannelID())
 	fmt.Println("response status: ", response.Status)
