@@ -57,6 +57,7 @@ func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, c
 	fmt.Println("In CreateSLA in customer contract")
 	exists, err := s.CustomerExist(ctx, customerID)
 	if err != nil {
+		fmt.Println("error when running CustomerExist")
 		return nil, err
 	}
 
@@ -65,15 +66,20 @@ func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, c
 	}
 
 	customer, readSLAerror := s.ReadCustomer(ctx, customerID)
-	if err != nil {
+	if readSLAerror != nil {
 		return nil, readSLAerror
 	}
 
+	fmt.Println("servicelevel: ", serviceLevel)
 	targetgrasslength_string := fmt.Sprintf("%f", targetgrasslength)
+	fmt.Println("targetgrasslength: ", targetgrasslength_string)
 	maxgrasslength_string := fmt.Sprintf("%f", maxgrasslength)
+	fmt.Println("Maxgrasslength: ", maxgrasslength_string)
 	mingrasslength_string := fmt.Sprintf("%f", mingrasslength)
+	fmt.Println("Mingrasslength: ", mingrasslength_string)
 
 	invokeArgs := [][]byte{[]byte("CreateSLA"), []byte(serviceLevel), []byte(targetgrasslength_string), []byte(maxgrasslength_string), []byte(mingrasslength_string)}
+	fmt.Println("Invoke args: ", invokeArgs)
 	response := ctx.GetStub().InvokeChaincode("mower", invokeArgs, ctx.GetStub().GetChannelID())
 	fmt.Println("response status: ", response.Status)
 	if response.Status != shim.OK {
