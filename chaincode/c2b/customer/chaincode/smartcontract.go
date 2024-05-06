@@ -53,7 +53,7 @@ func (s *SmartContract) CreateCustomer(ctx contractapi.TransactionContextInterfa
 	return ctx.GetStub().PutState(id, customerJSON)
 }
 
-func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, customerID, serviceLevel string, targetgrasslength float32, maxgrasslength float32, mingrasslength float32) (*SLA, error) {
+func (s *SmartContract) CreateSLA(ctx contractapi.TransactionContextInterface, customerID, id string, serviceLevel string, targetgrasslength float32, maxgrasslength float32, mingrasslength float32) (*SLA, error) {
 	fmt.Println("In CreateSLA in customer contract")
 	exists, err := s.CustomerExist(ctx, customerID)
 	if err != nil {

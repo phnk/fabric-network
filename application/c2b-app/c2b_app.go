@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"github.com/hyperledger/fabric-gateway/pkg/identity"
 	"github.com/hyperledger/fabric-protos-go-apiv2/gateway"
@@ -284,11 +285,15 @@ func CreateCustomerHandler(c *gin.Context) {
 
 func createSLA(contract *client.Contract, customerID string, serviceLevel string, targetgrasslength float32, maxgrasslength float32, mingrasslength float32) (*SLA, error) {
 	fmt.Println("\n--> Submit Transaction: createSLA")
+	newUUID := uuid.New()
+	newUUIDString := newUUID.String()
+	fmt.Println("UUID generated: ", newUUID)
+	fmt.Println("UUID string: ", newUUIDString)
 	targetgrasslength_string := fmt.Sprintf("%f", targetgrasslength)
 	maxgrasslength_string := fmt.Sprintf("%f", maxgrasslength)
 	mingrasslength_string := fmt.Sprintf("%f", mingrasslength)
 
-	createResult, err := contract.SubmitTransaction("CreateSLA", customerID, serviceLevel, targetgrasslength_string, maxgrasslength_string, mingrasslength_string)
+	createResult, err := contract.SubmitTransaction("CreateSLA", customerID, newUUIDString, serviceLevel, targetgrasslength_string, maxgrasslength_string, mingrasslength_string)
 
 	if err != nil {
 		switch err := err.(type) {
