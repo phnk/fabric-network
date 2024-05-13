@@ -1,4 +1,4 @@
-package bumpy
+package battery
 
 import (
 	"bytes"
@@ -29,6 +29,18 @@ type SmartContract struct {
 	contractapi.Contract
 }
 
+type OffLedgerRequest struct {
+	WorkID   string `json:"workId"`
+	WorkerID string `json:"workerId"`
+}
+
+type OffLedgerResponse struct {
+	ProductID string    `json:"productId"`
+	Address   string    `json:"address"`
+	EventType string    `json:"eventType"`
+	StartTime time.Time `json:"startTime"`
+}
+
 // Asset describes basic details of what makes up a simple asset
 // Insert struct field in alphabetic order => to achieve determinism across languages
 // golang keeps the order when marshal to json but doesn't order automatically
@@ -43,20 +55,9 @@ type Job struct {
 	Address       string    `json:"Address"`
 }
 
-type OffLedgerRequest struct {
-	WorkID   string `json:"workId"`
-	WorkerID string `json:"workerId"`
-}
-
-type OffLedgerResponse struct {
-	ProductID string    `json:"productId"`
-	Address   string    `json:"address"`
-	EventType string    `json:"eventType"`
-	StartTime time.Time `json:"startTime"`
-}
-
 func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, technichianID string, jobID string, mower string, address string, deadline string) (*Job, error) {
 	jobExistsOnLedger, err := s.JobExistsOnLedger(ctx, jobID)
+
 	fmt.Println("Mower: ", mower)
 
 	if err != nil {
@@ -79,19 +80,18 @@ func (s *SmartContract) Create(ctx contractapi.TransactionContextInterface, tech
 		fmt.Println("Job does not exist")
 		return nil, fmt.Errorf("Job %s does not exist off ledger", jobID)
 	}
-
 	timeDeadline, err := time.Parse("2006-01-02 15:04:05", deadline)
 	if err != nil {
 		fmt.Println("Error parsing deadline: ", err)
 		return nil, err
 	}
 	job := Job{
-		Type:          "bumpy",
+		Type:          "battery-change",
 		Status:        "Ongoing",
-		Deadline:      timeDeadline,
-		JobPay:        50,
+		JobPay:        200,
 		InspectionPay: 50,
 		ID:            jobID,
+		Deadline:      timeDeadline,
 		Mower:         mower,
 		Address:       address,
 	}
@@ -128,7 +128,9 @@ func (s *SmartContract) JobExistsOnLedger(ctx contractapi.TransactionContextInte
 
 	return true, nil
 }
-
+func createDirectory(dirName string) {
+	os.Mkdir(dirName, 0777)
+}
 func createFile(dirName, filename string, content string) (string, error) {
 	filename = path.Join(dirName, filename)
 	f, err := os.Create(filename)
@@ -149,10 +151,6 @@ func createFile(dirName, filename string, content string) (string, error) {
 	}
 	return filename, nil
 
-}
-
-func createDirectory(dirName string) {
-	os.Mkdir(dirName, 0777)
 }
 
 func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (bool, error) {
@@ -189,6 +187,8 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (b
 	jsonOrchResponse := arrowheadfunctions.Orchestration(requestBody, orchIP, orchPort, certPath, keyPath, trustsorePath)
 	json.Unmarshal(jsonOrchResponse, &orchResponse)
 	chosenResponse := orchResponse.Response[0]
+
+	fmt.Println("Chosen response: ", chosenResponse)
 	fmt.Println("response from neginfo: ", chosenResponse)
 
 	var offLedgerRequest OffLedgerRequest

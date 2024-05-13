@@ -498,7 +498,7 @@ func (s *SmartContract) JobExistsOffLedger(jobID string, technicianID string) (*
 	// TODO: check jespers system if the job exists or not and what type of job it is
 	var orchBody arrowheadfunctions.Orchestrate
 	var orchSystem arrowheadfunctions.System
-	orchSystem.Address = "35.228.75.182"
+	orchSystem.Address = "35.228.158.137"
 	orchSystem.AuthenticationInfo = ""
 	orchSystem.Port = 5000
 	orchSystem.SystemName = "technician"
