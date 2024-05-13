@@ -99,32 +99,32 @@ We have went through a complete chain of events for a technician from creating o
 
 1. Begin by creating a customer contract. Send a POST request to the /contract endpint in the c2b application.
    <p align="center">
-    <img src="img/postman_createcustomer" />
+    <img src="img/postman_createcustomer.png" />
     </p>
 
 2. Evaluate a SLA by sending a POST request to the /sla/evaluate endpoint which will evaluate the monthly cost of the SLA with the given parameters.
    <p align="center">
-    <img src="img/postman_evaluate" />
+    <img src="img/postman_evaluate.png" />
     </p>
 
 3. Create the SLA with the same parameters which was evaluated in step 2 by sending a POST request to the :customerid/sla endpoint. The UUID that are sent back are the generated UUID for the newly created SLA and should be saved for future steps.
    <p align="center">
-    <img src="img/postman_createsla" />
+    <img src="img/postman_createsla.png" />
     </p>
 
 4. We can now check wether the SLA:s montly cost correspondes to the evaluated cost in step 2 by sending a GET request to the /contract/:customerid where :customerid is the id that was submitted in step 1.
    <p align="center">
-    <img src="img/postman_getcustomer" />
+    <img src="img/postman_getcustomer.png" />
     </p>
 
 5. We will now configure the SLA created in step 3. This is done by sending a PUT request to /:customerid/sla/:slaid where customer id is the id from step 1 and slaid is the id returned from step 3.
    <p align="center">
-    <img src="img/postman_updatesla" />
+    <img src="img/postman_updatesla.png" />
     </p>
 
 6. Lastly, we can now check if the monthly cost of the SLA has changed after we modified it in step 5. We can do this by using the same endpoint as in step 4.
    <p align="center">
-    <img src="img/postman_getcustomer2" />
+    <img src="img/postman_getcustomer2.png" />
     </p>
 
     The SLA should have a new cost compared to when we check in step 4 which completes the example for how we can test the creation of customers, creation of SLA:s and lastly configuration of active SLA:s.
