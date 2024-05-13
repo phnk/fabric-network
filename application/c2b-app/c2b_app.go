@@ -84,7 +84,6 @@ type SlaParams struct {
 }
 
 type UpdateSlaParams struct {
-	ID                string  `json:"id"`
 	ServiceLevel      string  `json:"ServiceLevel"`
 	TargetGrassLength float32 `json:"TargetGrassLength"`
 	MaxGrassLength    float32 `json:"MaxGrassLength"`
@@ -192,7 +191,7 @@ func CreateRouter() *gin.Engine {
 	r.GET("/sla/:id/servicelevel", GetServiceLevelHandler)
 	r.POST("/contract", CreateCustomerHandler)
 	r.POST(":customer_id/sla", CreateSLAHandler)
-	r.PUT("/sla/:id/sla", updateSLAHandler)
+	r.PUT(":customer_id/sla/:id", updateSLAHandler)
 	r.PUT("/sla/:id/grasslength", updateTargetGrassLengthHandler)
 	r.PUT("/sla/:id/intervall", updateGrassLengthIntervalHandler)
 	r.PUT("sla/:id/servicelevel", updateServiceLevelHandler)
@@ -443,14 +442,15 @@ func updateSLAHandler(c *gin.Context) {
 	contract := network.GetContract(chaincodeName)
 	var slaParams UpdateSlaParams
 	customerID := c.Param("customer_id")
+	slaID := c.Param("id")
 	if err := c.BindJSON(&slaParams); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	updateTargetGrassLength(contract, customerID, slaParams.ID, slaParams.TargetGrassLength)
-	updateGrassLengthInterval(contract, customerID, slaParams.ID, slaParams.MaxGrassLength, slaParams.MinGrassLength)
-	err = updateServiceLevel(contract, customerID, slaParams.ID, slaParams.ServiceLevel)
+	updateTargetGrassLength(contract, customerID, slaID, slaParams.TargetGrassLength)
+	updateGrassLengthInterval(contract, customerID, slaID, slaParams.MaxGrassLength, slaParams.MinGrassLength)
+	err = updateServiceLevel(contract, customerID, slaID, slaParams.ServiceLevel)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
