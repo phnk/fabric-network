@@ -158,7 +158,7 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 	}
 
 	//Add jespers VM address to get request
-	serviceLevelResponse, err := http.Get("local/" + jobInfo.ProductID + "/servicelevel")
+	serviceLevelResponse, err := http.Get("http://35.228.100.1:80/" + jobInfo.ProductID + "/service-level")
 	if err != nil {
 		return err
 	}
