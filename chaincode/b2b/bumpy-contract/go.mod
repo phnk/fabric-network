@@ -2,7 +2,10 @@ module github.com/nalle631/fabric-network/chaincode/b2b/bumpy-contract
 
 go 1.22.0
 
-require github.com/hyperledger/fabric-contract-api-go v1.2.2
+require (
+	github.com/hyperledger/fabric-contract-api-go v1.2.2
+	github.com/nalle631/arrowheadfunctions v1.5.2
+)
 
 require (
 	github.com/go-openapi/jsonpointer v0.20.0 // indirect

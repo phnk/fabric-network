@@ -161,6 +161,7 @@ function createOrgs() {
 
   # Create crypto material using cryptogen
   if [ "$CRYPTO" == "cryptogen" ]; then
+    infoln "in cryptogen"
     which cryptogen
     if [ "$?" -ne 0 ]; then
       fatalln "cryptogen tool not found. exiting"
@@ -281,21 +282,36 @@ function createOrgs() {
 
 # Bring up the peer and orderer nodes using docker compose.
 function networkUp() {
+  infoln "Before checkPrereqs"
 
   checkPrereqs
 
+  infoln "After checkPrereqs"
+
   # generate artifacts if they don't exist
   if [ ! -d "organizations/peerOrganizations" ]; then
+    infoln "before createOrgs"
     createOrgs
+    infoln "after createOrgs"
   fi
 
   COMPOSE_FILES="-f compose/${COMPOSE_FILE_BASE} -f compose/${CONTAINER_CLI}/${CONTAINER_CLI}-${COMPOSE_FILE_BASE}"
+  infoln "after compose_files"
 
   if [ "${DATABASE}" == "couchdb" ]; then
     COMPOSE_FILES="${COMPOSE_FILES} -f compose/${COMPOSE_FILE_COUCH} -f compose/${CONTAINER_CLI}/${CONTAINER_CLI}-${COMPOSE_FILE_COUCH}"
   fi
 
+  infoln "after couch"
+
+  infoln "DOCKER_SOCK=$DOCKER_SOCK"
+  infoln "CONTAINER_CLI_COMPOSE=$CONTAINER_CLI_COMPOSE"
+  infoln "COMPOSE_FILES=$COMPOSE_FILES"
+
+
   DOCKER_SOCK="${DOCKER_SOCK}" ${CONTAINER_CLI_COMPOSE} ${COMPOSE_FILES} up -d 2>&1
+
+  infoln "after docker_sock"
 
   $CONTAINER_CLI ps -a
   if [ $? -ne 0 ]; then
@@ -462,23 +478,37 @@ function networkDown() {
 
 . ./network.config
 
+
+
 # use this as the default docker-compose yaml definition
 COMPOSE_FILE_BASE=compose-test-net.yaml
+
 # docker-compose.yaml file if you are using couchdb
 COMPOSE_FILE_COUCH=compose-couch.yaml
+
 # certificate authorities compose file
 COMPOSE_FILE_CA=compose-ca.yaml
+
+
 # use this as the default docker-compose yaml definition for org3
 COMPOSE_FILE_ORG3_BASE=compose-org3.yaml
+
+
 # use this as the docker compose couch file for org3
 COMPOSE_FILE_ORG3_COUCH=compose-couch-org3.yaml
+
 # certificate authorities compose file
 COMPOSE_FILE_ORG3_CA=compose-ca-org3.yaml
 #
 
 # Get docker sock path from environment variable
 SOCK="${DOCKER_HOST:-/var/run/docker.sock}"
+
+infoln "SOCK=$SOCK"
+
 DOCKER_SOCK="${SOCK##unix://}"
+
+infoln "DOCKER_SOCK=$DOCKER_SOCK"
 
 # BFT activated flag
 BFT=0
