@@ -148,16 +148,20 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 	}
 
 	// Remember to remove jobtype when integrated with jespers system
+	/*
 	jobInfo, err := s.JobExistsOffLedger(jobID, technichianID)
 	if err != nil {
 		return err
 	}
+	
 
 	if jobInfo.WorkID == "" {
 		return fmt.Errorf("Job %s does not exist in external system", jobID)
 	}
+	*/
 
 	//Add jespers VM address to get request
+	/*
 	serviceLevelResponse, err := http.Get("http://35.228.100.1:80/serviceprovider/" + jobInfo.ProductID + "/service-level")
 	if err != nil {
 		return err
@@ -170,6 +174,28 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 	}
 
 	serviceLevel := string(serviceLevelJson)
+	*/
+	
+	
+	/*
+	type OffLedgerResponse struct {
+		WorkID    string    `json:"workId"`
+		ProductID string    `json:"productId"`
+		EventType string    `json:"eventType"`
+		Address   string    `json:"address"`
+		StartTime time.Time `json:"startTime"`
+	}
+	*/
+	
+	serviceLevel := "standard" //hard coding so i dont have to care about some rando vm system
+	jobInfo := OffLedgerResponse{
+		WorkID: "16",
+		ProductID: "15",
+		EventType: "trapped",
+		Address: "127.0.0.1",
+		StartTime: time.Now(),
+	}
+	
 	fmt.Println("serviceLevel: ", serviceLevel)
 	switch serviceLevel {
 	case "standard":
@@ -194,7 +220,7 @@ func (s *SmartContract) TakeJob(ctx contractapi.TransactionContextInterface, job
 	fmt.Println("response status: ", response.Status)
 	if response.Status != shim.OK {
 		fmt.Println("failed to invoke chaincode. Got error: %s", response.Payload)
-		return fmt.Errorf("Failed to invoke chaincode. Got error: %s", response.Payload)
+		return fmt.Errorf("Failed to invoke chaincode. Got error: %s", response.String())
 	}
 	var createdJob Job
 	err = json.Unmarshal(response.Payload, &createdJob)

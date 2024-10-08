@@ -40,7 +40,7 @@ const (
 	peerEndpoint        = "localhost:7051"
 	gatewayPeer         = "peer0.org1.example.com"
 	arrowheadcertsPath  = "./certs"
-	arrowheadKey        = arrowheadcertsPath + "/technician-key.pem"
+	arrowheadKey        = arrowheadcertsPath + "/technician-cert.pem"
 	arrowheadCert       = arrowheadcertsPath + "/technician-cert.pem"
 	arrowheadTruststore = arrowheadcertsPath + "/truststore.pem"
 )
@@ -80,8 +80,11 @@ var technichianID = "Org1MSP"
 
 func main() {
 	godotenv.Load()
-	serviceRegistryIP := os.Getenv("SERVICEREGISTRYADDRESS")
-	serviceRegistryPort, err := strconv.Atoi(os.Getenv("SERVICEREGISTRYPORT"))
+	//serviceRegistryIP := os.Getenv("SERVICEREGISTRYADDRESS")
+	serviceRegistryIP := "127.0.0.1"
+	
+	//serviceRegistryPort, err := strconv.Atoi(os.Getenv("SERVICEREGISTRYPORT"))
+	serviceRegistryPort, err := strconv.Atoi("8553")
 	if err != nil {
 		panic(err)
 	}
@@ -195,6 +198,7 @@ func CreateRouter() *gin.Engine {
 	r.GET("/gc", ReadGCHandler)
 	r.GET("/gc/jobs", GetAllJobsHandler)
 	r.POST("/gc/create", CreateHandler)
+	r.POST("/job/create", CreateJobHandler)
 	r.POST("/job/take", TakeJobHandler)
 	r.POST("/job/done_correct", FinishJobCorrectErrorHandler)
 	r.POST("/job/done_wrong", FinishJobWrongErrorHandler)
@@ -205,6 +209,7 @@ func Create(contract *client.Contract) {
 	fmt.Printf("\n--> Submit Transaction: create, function creates a key value pair on the ledger \n")
 
 	_, err := contract.SubmitTransaction("CreateGeneralContract")
+	fmt.Println("err in create", err)
 	if err != nil {
 		switch err := err.(type) {
 		case *client.EndorseError:
@@ -380,6 +385,7 @@ func takeJob(contract *client.Contract, jobID string) {
 
 	//Remember to remove jobtype when integrated with jespers system
 	submitResult, err := contract.SubmitTransaction("TakeJob", jobID, technichianID)
+	fmt.Println("err: ", err, status.Code(err))
 	if err != nil {
 		switch err := err.(type) {
 		case *client.EndorseError:
